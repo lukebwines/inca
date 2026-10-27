@@ -1,3 +1,9 @@
+# 0.1.2
+
+- Filtri Tipologia e Codice corso, con Sede corso già disponibile.
+- Colonne Tipologia, Sede corso e Codice corso nell’elenco.
+- Azzera filtri, riepilogo filtri attivi e messaggio per risultati vuoti.
+
 # 0.1.1
 
 - Corretto caricamento XLS attraverso Ingress: supporto richieste chunked e buffering del proxy.
