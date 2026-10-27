@@ -68,3 +68,7 @@ Per lo sviluppo locale, con Python già disponibile:
 In questo caso il server ascolta solo su localhost. Il container attiva Ingress.
 
 Il lettore XLS xlrd è incluso in `inca/vendor` con la relativa licenza.
+
+## Esportazione proposta Excel
+
+Dalla pratica salvata scegliere **Scarica proposta Excel**. Il file .xlsx contiene DELIBERATO e PROPOSTA DI MODIFICA, con le colonne del secondo foglio del modello e le righe della pratica nello stesso ordine. Le celle modificate sono gialle. Le colonne nascoste del modello diventano visibili se modificate; eventuali campi aggiuntivi modificati (es. NOTE) sono accodati. L’esportazione usa i dati salvati e non modifica l’archivio.

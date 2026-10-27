@@ -4,6 +4,8 @@ from urllib.parse import urlsplit
 from http.server import HTTPServer, BaseHTTPRequestHandler
 sys.path.insert(0,str(pathlib.Path(__file__).parent/'vendor'))
 import xlrd
+sys.path.insert(0,str(pathlib.Path(__file__).parent))
+from excel_export import export_proposal
 ROOT=pathlib.Path(__file__).resolve().parent
 INGRESS=os.environ.get('INCA_INGRESS','0')=='1'
 DATA=pathlib.Path(os.environ.get('INCA_DATA', '/data' if INGRESS else str(ROOT/'dati'))); DATA.mkdir(exist_ok=True,parents=True)
@@ -50,7 +52,7 @@ def practice(pid):
   p=c.execute('select * from practices where id=?',(pid,)).fetchone()
   if not p:raise ValueError('Pratica inesistente')
   items=[]
-  for x in c.execute('select changes.*,records.body original from changes join records on records.id=record_id where practice_id=?',(pid,)):
+  for x in c.execute('select changes.*,records.body original from changes join records on records.id=record_id where practice_id=? order by changes.id',(pid,)):
    z=dict(x);z['before']=json.loads(z.pop('original'));z['after']=json.loads(z.pop('body'));z['warnings']=warnings(z['after']);z['history']=[dict(h) for h in c.execute('select created,body from history where change_id=? order by id desc',(z['id'],))];items.append(z)
   return {'practice':dict(p),'items':items}
 def options():
@@ -131,6 +133,7 @@ class Handler(BaseHTTPRequestHandler):
    if self.path=='/records':
     with db() as c:rows=[{'id':r['id'],'line':r['line'],**json.loads(r['body'])} for r in c.execute('select * from records where import_id=?',(q['import_id'],))]
     return self.send(rows)
+   if self.path=='/export-xlsx':return self.send(export_proposal(practice(int(q['id']))),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
    if self.path=='/practice':return self.send(practice(int(q['id'])))
    if self.path=='/create':
     title=q['title'].strip()

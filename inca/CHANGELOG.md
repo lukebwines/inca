@@ -1,3 +1,7 @@
+# 0.1.4
+
+- Esporta proposta Excel (.xlsx) con blocchi DELIBERATO e PROPOSTA DI MODIFICA, colonne del modello e celle modificate evidenziate.
+
 # 0.1.3
 
 - Selezione multipla con caselle in tutti i filtri; alternative nello stesso filtro e intersezione tra filtri.

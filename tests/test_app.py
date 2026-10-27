@@ -31,7 +31,7 @@ class AppTests(unittest.TestCase):
   h.update(headers or {})
   req=urllib.request.Request(self.url+path,data=json.dumps(data or {}).encode(),headers=h)
   with urllib.request.urlopen(req) as r:
-   return r.read() if path=='/backup' else json.load(r)
+   return r.read() if path in ('/backup','/export-xlsx') else json.load(r)
  def create(self):return self.call('/create',{'title':'Pratica sintetica','ids':[1]})['id']
  def test_roundtrip_and_conflict(self):
   pid=self.create();x=self.call('/practice',{'id':pid})['items'][0]
@@ -49,6 +49,24 @@ class AppTests(unittest.TestCase):
   self.assertEqual(self.call('/practice',{'id':pid})['items'][0]['version'],1)
   with self.assertRaises(urllib.error.HTTPError):self.call('/create',{'title':'bad','ids':[1,999]})
   self.assertEqual(len(self.call('/state')['practices']),1)
+ def test_excel_export(self):
+  import xml.etree.ElementTree as ET
+  pid=self.create();x=self.call('/practice',{'id':pid})['items'][0]
+  self.call('/save',{'id':x['id'],'version':1,'values':{'MUTUAZIONE':'0','PADRE MUTUAZIONE':'','NOME DOCENTE':'=TEST()','NOTE':'Nota & verifica','PERIODO INIZIO':'2026-10-05'}})
+  raw=self.call('/export-xlsx',{'id':pid});ns={'m':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+  with zipfile.ZipFile(io.BytesIO(raw)) as z:
+   for name in z.namelist():ET.fromstring(z.read(name))
+   root=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
+   cells={c.attrib['r']:c for c in root.findall('.//m:c',ns)}
+   value=lambda ref: ''.join(cells[ref].itertext())
+   self.assertEqual(value('D2'),'DELIBERATO');self.assertEqual(value('D7'),'PROPOSTA DI MODIFICA')
+   self.assertEqual(value('D4'),'Corso sintetico');self.assertEqual(value('D9'),'Corso sintetico')
+   self.assertEqual(value('P4'),'1');self.assertEqual(value('P9'),'0.0');self.assertEqual(cells['P9'].attrib['s'],'2')
+   self.assertEqual(value('X9'),'=TEST()');self.assertEqual(cells['X9'].attrib['t'],'inlineStr');self.assertFalse(root.findall('.//m:f',ns))
+   self.assertEqual(value('BJ9'),'Nota & verifica');self.assertEqual(cells['BF9'].attrib['s'],'4')
+  self.assertEqual(self.call('/practice',{'id':pid})['items'][0]['before'],self.record)
+  with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':pid},token=False)
+  with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':999})
  def test_backup(self):
   self.create();self.app.DATA.joinpath('fonte_1.xls').write_bytes(b'synthetic bytes')
   raw=self.call('/backup')
