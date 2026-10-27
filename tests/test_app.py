@@ -72,6 +72,25 @@ class AppTests(unittest.TestCase):
   self.assertIn('<base href="/api/hassio_ingress/test/">',html)
   self.assertNotIn("fetch('/",html)
   self.app.allowed_peer=original
+ def test_upload_http_framing(self):
+  import http.client
+  from unittest.mock import patch
+  for chunked in (False,True):
+   payload=b'synthetic XLS bytes '+str(chunked).encode()
+   conn=http.client.HTTPConnection('127.0.0.1',self.server.server_port)
+   body=iter([payload[:7],payload[7:]]) if chunked else payload
+   with patch.object(self.app,'parse',return_value=[(2,self.record)]) as parser:
+    conn.request('POST','/import',body=body,headers={'X-Token':self.app.TOKEN},encode_chunked=chunked)
+    response=conn.getresponse();result=json.loads(response.read())
+    self.assertEqual(response.status,200,result);parser.assert_called_once_with(payload)
+   conn.close()
+  with self.app.db() as c:self.assertEqual(c.execute('select count(*) from imports').fetchone()[0],3)
+ def test_empty_upload_is_actionable(self):
+  with self.assertRaisesRegex(ValueError,'Nessun contenuto'):self.app.parse(b'')
+  req=urllib.request.Request(self.url+'/import',data=b'',headers={'X-Token':self.app.TOKEN})
+  with self.assertRaises(urllib.error.HTTPError) as ctx:urllib.request.urlopen(req)
+  self.assertIn('Nessun contenuto',json.loads(ctx.exception.read())['error'])
+  self.assertEqual(len(self.call('/state')['imports']),1)
  def test_xls_conversion(self):
   from unittest.mock import patch
   sheet=type('Sheet',(),{'nrows':2,'row_values':lambda _,i: ['CDS','ID COPERTURA','ANNO ACCADEMICO','INSEGNAMENTO','PERIODO INIZIO'] if i==0 else ['Test','000123','TEST','Test',46000],'cell_type':lambda _,i,j:3 if j==4 else 1})()

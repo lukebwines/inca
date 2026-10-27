@@ -21,6 +21,7 @@ def init():
   c.executescript('CREATE TABLE IF NOT EXISTS imports(id INTEGER PRIMARY KEY,name TEXT,sha TEXT UNIQUE,created TEXT); CREATE TABLE IF NOT EXISTS records(id INTEGER PRIMARY KEY,import_id INTEGER,line INTEGER,body TEXT); CREATE TABLE IF NOT EXISTS practices(id INTEGER PRIMARY KEY,title TEXT,notes TEXT,created TEXT); CREATE TABLE IF NOT EXISTS changes(id INTEGER PRIMARY KEY,practice_id INTEGER,record_id INTEGER,body TEXT,version INTEGER DEFAULT 1,UNIQUE(practice_id,record_id)); CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY,change_id INTEGER,body TEXT,created TEXT);')
 def now():return datetime.datetime.now().isoformat(timespec='seconds')
 def parse(raw):
+ if not raw:raise ValueError("Nessun contenuto ricevuto. Selezionare un file XLS non vuoto e riprovare.")
  b=xlrd.open_workbook(file_contents=raw,logfile=io.StringIO()); s=b.sheet_by_index(0); headers=[str(v).strip() for v in s.row_values(0)]
  if not {'CDS','ID COPERTURA','ANNO ACCADEMICO','INSEGNAMENTO'}.issubset(headers):raise ValueError('Il primo foglio non contiene le intestazioni attese.')
  result=[]
@@ -82,13 +83,41 @@ class Handler(BaseHTTPRequestHandler):
    base=base.rstrip('/')+'/'
    return self.send((ROOT/'index.html').read_text().replace('__TOKEN__',TOKEN).replace('__BASE__',html.escape(base,quote=True)).encode(),'text/html; charset=utf-8')
   return self.send({'error':'Non trovato'},status=404)
+ def read_body(self):
+  limit=40_000_000
+  self.connection.settimeout(60)
+  transfer=self.headers.get('Transfer-Encoding','').lower().strip()
+  length=self.headers.get('Content-Length')
+  if transfer:
+   if transfer!='chunked' or length is not None:raise ValueError('Trasferimento HTTP non valido.')
+   parts=[];total=0
+   while True:
+    line=self.rfile.readline(8193)
+    if len(line)>8192 or not line.endswith(b'\r\n'):raise ValueError('Trasferimento incompleto.')
+    token=line[:-2].split(b';',1)[0]
+    if not token or any(c not in b'0123456789abcdefABCDEF' for c in token):raise ValueError('Dimensione blocco non valida.')
+    size=int(token,16)
+    if size==0:
+     trailer_size=0
+     while True:
+      trailer=self.rfile.readline(8193);trailer_size+=len(trailer)
+      if trailer_size>8192 or not trailer.endswith(b'\r\n'):raise ValueError('Chiusura trasferimento non valida.')
+      if trailer==b'\r\n':return b''.join(parts)
+    total+=size
+    if total>limit:raise ValueError('File troppo grande (limite 40 MB).')
+    chunk=self.rfile.read(size)
+    if len(chunk)!=size or self.rfile.read(2)!=b'\r\n':raise ValueError('Trasferimento incompleto.')
+    parts.append(chunk)
+  n=int(length or '0')
+  if n<0 or n>limit:raise ValueError('File troppo grande (limite 40 MB).')
+  payload=self.rfile.read(n)
+  if len(payload)!=n:raise ValueError('Trasferimento incompleto.')
+  return payload
  def do_POST(self):
   if not self.authorize():return
   if self.headers.get('X-Token')!=TOKEN:return self.send({'error':'Sessione non valida: riaprire la pagina'},status=403)
   try:
-   n=int(self.headers.get('Content-Length','0'))
-   if n<0 or n>40_000_000:raise ValueError('File troppo grande (limite 40 MB).')
-   payload=self.rfile.read(n)
+   payload=self.read_body()
    if self.path=='/import':
     rows=parse(payload);sha=hashlib.sha256(payload).hexdigest()
     with db() as c:
