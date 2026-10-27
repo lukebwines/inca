@@ -1,3 +1,8 @@
+# 0.1.5
+
+- Filtri collegati: ogni elenco mostra i valori compatibili con gli altri filtri e la ricerca libera.
+- Le selezioni multiple restano disponibili; le scelte già attive senza corrispondenze sono segnalate e possono essere rimosse.
+
 # 0.1.4
 
 - Esporta proposta Excel (.xlsx) con blocchi DELIBERATO e PROPOSTA DI MODIFICA, colonne del modello e celle modificate evidenziate.

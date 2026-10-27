@@ -72,3 +72,7 @@ Il lettore XLS xlrd è incluso in `inca/vendor` con la relativa licenza.
 ## Esportazione proposta Excel
 
 Dalla pratica salvata scegliere **Scarica proposta Excel**. Il file .xlsx contiene DELIBERATO e PROPOSTA DI MODIFICA, con le colonne del secondo foglio del modello e le righe della pratica nello stesso ordine. Le celle modificate sono gialle. Le colonne nascoste del modello diventano visibili se modificate; eventuali campi aggiuntivi modificati (es. NOTE) sono accodati. L’esportazione usa i dati salvati e non modifica l’archivio.
+
+## Filtri collegati
+
+Ogni elenco si adatta agli altri filtri e alla ricerca libera. Il filtro corrente non limita le proprie alternative: puoi quindi aggiungere altre scelte. Le selezioni attive non vengono cancellate automaticamente; se una ricerca le rende incompatibili, restano visibili con la dicitura «nessuna corrispondenza» per poterle togliere. Azzera filtri ripristina tutti i valori.
