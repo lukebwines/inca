@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+dati/
+data/
+*.sqlite*
+*.xls
+*.xlsx
+*.csv
+*.pdf
+*.docx
+*.zip
+.env
