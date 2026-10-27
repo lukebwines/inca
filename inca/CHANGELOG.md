@@ -1,3 +1,8 @@
+# 0.1.3
+
+- Selezione multipla con caselle in tutti i filtri; alternative nello stesso filtro e intersezione tra filtri.
+- Riepilogo delle scelte, azzeramento singolo o globale e opzione Non compilato.
+
 # 0.1.2
 
 - Filtri Tipologia e Codice corso, con Sede corso già disponibile.
