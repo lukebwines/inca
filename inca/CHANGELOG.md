@@ -1,3 +1,7 @@
+# 0.1.6
+
+- Filtri Cognome docente e Nome docente con selezione multipla, collegato agli altri filtri e alla ricerca libera.
+
 # 0.1.5
 
 - Filtri collegati: ogni elenco mostra i valori compatibili con gli altri filtri e la ricerca libera.
