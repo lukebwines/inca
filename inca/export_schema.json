@@ -66,5 +66,11 @@
   {
     "name": "TITOLO AFFIDAMENTO",
     "hidden": false
+  },
+  {
+    "name": "SATURAZIONE DOCENTE A PREVENTIVO",
+    "label": "SATURAZIONE DOCENTE A PREVENTIVO (PREMODIFICA)",
+    "hidden": false,
+    "original_only": true
   }
 ]

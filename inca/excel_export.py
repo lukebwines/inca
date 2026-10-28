@@ -24,11 +24,13 @@ def export_proposal(practice):
  n=len(items);second=n+6
  for label,start,key in [('DELIBERATO',2,'before'),('PROPOSTA DI MODIFICA',second,'after')]:
   row(start,[cell(start,1,label,1)])
-  row(start+1,[cell(start+1,j+1,c['name'],1) for j,c in enumerate(schema)])
+  row(start+1,[cell(start+1,j+1,c.get('label',c['name']),1) for j,c in enumerate(schema)])
   for i,item in enumerate(items):
    rn=start+2+i;values=[]
    for j,c in enumerate(schema):
     k=c['name'];value=item[key].get(k,'');changed=key=='after' and str(value)!=str(item['before'].get(k,''));style=2 if changed else 0
+    if c.get('original_only'):
+     value=item['before'].get(k,'');value='[DA VERIFICARE]' if value is None or value=='' else value;style=0
     if (k.startswith('DATA ') or k.startswith('PERIODO ')) and isinstance(value,str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}',value):
      value=(datetime.date.fromisoformat(value)-datetime.date(1899,12,30)).days;style=4 if changed else 3
     values.append(cell(rn,j+1,value,style))

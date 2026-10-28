@@ -1,3 +1,8 @@
+# 0.2.4
+
+- Saturazione docente a preventivo premodifica in Excel e stampa PDF, sempre letta dall’originale della pratica.
+- Valore mancante indicato con [DA VERIFICARE]; nessun ricalcolo.
+
 # 0.2.3
 
 - Inclusi anche i codici corso MM? di tre caratteri, oltre a MM?? e M??R.

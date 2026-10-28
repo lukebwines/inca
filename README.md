@@ -9,7 +9,7 @@ Il repository contiene esclusivamente codice e test sintetici, senza dati reali 
 - Archivio limitato ai codici corso MM? (tre caratteri), MM?? oppure M??R (quattro caratteri); filtri collegati, ricerca e selezioni multiple.
 - Pratiche con originale conservato, proposta, storico, modifica ed eliminazione.
 - Nove campi modificabili: mutuazione, padre mutuazione, TAF, SSD, CFU, nome, cognome, totale ore e titolo affidamento.
-- Excel `.xlsx` con i 17 campi concordati e confronto deliberato/proposta, CSV, stampa PDF e backup ZIP.
+- Excel `.xlsx` con i 17 campi concordati più la saturazione premodifica e confronto deliberato/proposta, CSV, stampa PDF e backup ZIP.
 - Utenti locali amministratori e operatori. Tutti condividono archivio e pratiche.
 
 ## Installazione e primo amministratore

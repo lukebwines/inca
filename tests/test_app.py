@@ -63,12 +63,24 @@ class AppTests(unittest.TestCase):
    self.assertEqual(value('A4'),'Attività di test');self.assertEqual(value('A9'),'Attività di test')
    self.assertEqual(value('K9'),'=TEST()');self.assertEqual(cells['K9'].attrib['t'],'inlineStr');self.assertFalse(root.findall('.//m:f',ns))
    self.assertEqual(value('E9'),'F');self.assertEqual(value('G9'),'TEST/01')
-   expected='INSEGNAMENTO|DISCRIMINANTE DI OI|MODULO|ANNO|TAF INSEGNAMENTO|FUORI PIANO|SSD INSEGNAMENTO|CFU|MOODLE|MATRICOLA DOCENTE|NOME DOCENTE|COGNOME DOCENTE|TOT ORE PREVISTE|PERIODO INIZIO|PERIODO FINE|DIPARTIMENTO AFFERENZA DOCENTE|TITOLO AFFIDAMENTO'.split('|')
+   expected='INSEGNAMENTO|DISCRIMINANTE DI OI|MODULO|ANNO|TAF INSEGNAMENTO|FUORI PIANO|SSD INSEGNAMENTO|CFU|MOODLE|MATRICOLA DOCENTE|NOME DOCENTE|COGNOME DOCENTE|TOT ORE PREVISTE|PERIODO INIZIO|PERIODO FINE|DIPARTIMENTO AFFERENZA DOCENTE|TITOLO AFFIDAMENTO|SATURAZIONE DOCENTE A PREVENTIVO (PREMODIFICA)'.split('|')
    self.assertEqual([value(c.attrib['r']) for c in root.find("m:sheetData/m:row[@r='3']",ns)],expected)
-   self.assertEqual(len(root.find("m:sheetData/m:row[@r='9']",ns)),17)
+   self.assertEqual(len(root.find("m:sheetData/m:row[@r='9']",ns)),18)
   self.assertEqual(self.call('/practice',{'id':pid})['items'][0]['before'],self.record)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':pid},token=False)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':999})
+ def test_original_saturation_export(self):
+  import xml.etree.ElementTree as ET
+  ns={'m':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+  for value in (0,125.5,'',None):
+   before={'SATURAZIONE DOCENTE A PREVENTIVO':value}
+   raw=self.app.export_proposal({'items':[{'before':before,'after':{'SATURAZIONE DOCENTE A PREVENTIVO':999}}]})
+   with zipfile.ZipFile(io.BytesIO(raw)) as z:
+    root=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
+    for ref in ('R4','R9'):
+     cell=root.find(f".//m:c[@r='{ref}']",ns)
+     self.assertEqual(''.join(cell.itertext()),'[DA VERIFICARE]' if value is None or value=='' else str(value))
+     self.assertEqual(cell.attrib['s'],'0')
  def test_course_scope_and_editable_fields(self):
   for code,expected in [('MM1',True),(' mma ',True),('MM',False),('M1R',False),('MM01',True),('MMAR',True),('MA1R',True),(' M00R ',True),('mm01',True),('M123',False),('MABC',False),('M001',False),('MM 1',False),('MM123',False),('X123',False),('M1234',False),('M12',False),('',False)]:
    self.assertEqual(self.app.in_scope({'CODICE CORSO':code}),expected)

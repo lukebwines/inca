@@ -16,6 +16,11 @@ const run=s=>vm.runInContext(s,context);
   assert.equal(elements.get('accountmenu').innerHTML.includes('Esci'),external);
   await run('practices()');assert.match(elements.get('view').innerHTML,/Nessuna pratica/);
  }
+ run("S.edit=['CFU'];active={practice:{title:'Test',notes:'',created:''},items:[{id:1,before:{CFU:1,'SATURAZIONE DOCENTE A PREVENTIVO':125.5},after:{CFU:2,'SATURAZIONE DOCENTE A PREVENTIVO':999},warnings:[],history:[]}]}");
+ run('drawPractice()');assert.match(elements.get('items').innerHTML,/premodifica:<\/strong> 125.5/);
+ elements.get('only').checked=true;run('drawItems()');assert.match(elements.get('items').innerHTML,/premodifica:<\/strong> 125.5/);
+ run("active.items[0].before['SATURAZIONE DOCENTE A PREVENTIVO']=0;drawItems()");assert.match(elements.get('items').innerHTML,/premodifica:<\/strong> 0/);
+ run("delete active.items[0].before['SATURAZIONE DOCENTE A PREVENTIVO'];drawItems()");assert.match(elements.get('items').innerHTML,/premodifica:<\/strong> \[DA VERIFICARE\]/);
  context.fixture=[];await run('usersPage()');assert(elements.has('newuser'));assert(elements.has('usererror'));
  console.log('PASS real HTML navigation IDs, archive/practices for each role, initial user form');
 })().catch(e=>{console.error(e);process.exitCode=1});
