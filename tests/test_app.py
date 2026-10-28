@@ -81,6 +81,30 @@ class AppTests(unittest.TestCase):
   self.call('/save',{'id':x['id'],'version':1,'values':{'TAF INSEGNAMENTO':'F','SSD INSEGNAMENTO':'TEST/01'}})
   result=self.call('/practice',{'id':pid})['items'][0]
   self.assertEqual(result['after']['TAF INSEGNAMENTO'],'F');self.assertEqual(result['before'],self.record)
+ def test_replace_report_preserves_practices_and_rolls_back(self):
+  from unittest.mock import patch
+  pid=self.create();item=self.call('/practice',{'id':pid})['items'][0]
+  self.call('/save',{'id':item['id'],'version':1,'values':{'TOT ORE PREVISTE':'8'}})
+  before=self.call('/practice',{'id':pid})
+  self.app.DATA.joinpath('fonte_1.xls').write_bytes(b'old')
+  record={**self.record,'CODICE CORSO':'M001','TOT ORE PREVISTE':99}
+  with patch.object(self.app,'parse',return_value=[(2,record)]):
+   self.app.replace_report(b'new','new.xls')
+  state=self.call('/state');self.assertEqual(len(state['imports']),1);iid=state['imports'][0]['id']
+  self.assertEqual(self.call('/records',{'import_id':1}),[])
+  self.assertEqual(self.call('/records',{'import_id':iid})[0]['TOT ORE PREVISTE'],99)
+  self.assertEqual(self.call('/practice',{'id':pid}),before)
+  self.assertEqual(len(list(self.app.DATA.glob('fonte_*.xls'))),1)
+  with patch.object(self.app,'parse',return_value=[]):
+   with self.assertRaises(ValueError):self.app.replace_report(b'empty','empty.xls')
+  with patch.object(self.app,'parse',return_value=[(2,{'bad':object()})]):
+   with self.assertRaises(TypeError):self.app.replace_report(b'bad','bad.xls')
+  self.assertEqual(self.call('/state'),state)
+  self.assertEqual(self.app.DATA.joinpath(f'fonte_{iid}.xls').read_bytes(),b'new')
+  with patch.object(self.app,'parse',return_value=[(2,record)]):self.app.replace_report(b'new','again.xls')
+  self.assertEqual(self.call('/state')['imports'][0]['name'],'again.xls')
+  self.assertEqual(self.call('/practice',{'id':pid}),before)
+  with self.app.db() as c:self.assertEqual(c.execute('select count(*) from records').fetchone()[0],2)
  def test_backup(self):
   self.create();self.app.DATA.joinpath('fonte_1.xls').write_bytes(b'synthetic bytes')
   raw=self.call('/backup')
@@ -116,7 +140,7 @@ class AppTests(unittest.TestCase):
     response=conn.getresponse();result=json.loads(response.read())
     self.assertEqual(response.status,200,result);parser.assert_called_once_with(payload)
    conn.close()
-  with self.app.db() as c:self.assertEqual(c.execute('select count(*) from imports').fetchone()[0],3)
+  with self.app.db() as c:self.assertEqual(c.execute('select count(*) from imports').fetchone()[0],1)
  def test_empty_upload_is_actionable(self):
   with self.assertRaisesRegex(ValueError,'Nessun contenuto'):self.app.parse(b'')
   req=urllib.request.Request(self.url+'/import',data=b'',headers={'X-Token':self.app.TOKEN})

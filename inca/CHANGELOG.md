@@ -1,3 +1,8 @@
+# 0.1.9
+
+- Ogni importazione sostituisce il report attivo e rimuove le vecchie righe non utilizzate nelle pratiche.
+- Originali, proposte e storico delle pratiche conservati; importazioni non valide non sostituiscono l’archivio.
+
 # 0.1.8
 
 - Ricerca per lettere iniziali in ogni filtro, senza distinzione di maiuscole e accenti.

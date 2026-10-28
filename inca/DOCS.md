@@ -76,3 +76,7 @@ Dalla pratica salvata scegliere **Scarica proposta Excel**. Il file .xlsx contie
 ## Filtri collegati
 
 Ogni elenco si adatta agli altri filtri e alla ricerca libera. Il filtro corrente non limita le proprie alternative: puoi quindi aggiungere altre scelte. Le selezioni attive non vengono cancellate automaticamente; se una ricerca le rende incompatibili, restano visibili con la dicitura «nessuna corrispondenza» per poterle togliere. Azzera filtri ripristina tutti i valori.
+
+## Sostituzione report (0.1.9)
+
+Ogni caricamento valido sostituisce il report attivo, anche ricaricando lo stesso file. I report precedenti non sono più selezionabili. Sono conservate solo le righe originali necessarie alle pratiche salvate, insieme alle proposte e allo storico. Le pratiche non vengono ricollegate al nuovo report. Un file non valido o privo di righe lascia intatto il report precedente.

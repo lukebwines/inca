@@ -38,6 +38,29 @@ def parse(raw):
    if s.cell_type(i,j)==xlrd.XL_CELL_DATE: vals[j]=xlrd.xldate_as_datetime(v,b.datemode).date().isoformat()
   result.append((i+1,dict(zip(headers,vals))))
  return result
+def replace_report(payload,name):
+ rows=parse(payload)
+ if not rows:raise ValueError('Il report non contiene righe: archivio precedente conservato.')
+ sha=hashlib.sha256(payload).hexdigest();target=None
+ try:
+  with db() as c:
+   # Free the unique hash when the user imports the same report again.
+   c.execute("update imports set sha='historical:' || id || ':' || sha where sha=?",(sha,))
+   iid=c.execute('insert into imports(name,sha,created) values(?,?,?)',(name,sha,now())).lastrowid
+   target=DATA/f'fonte_{iid}.xls';target.write_bytes(payload)
+   c.executemany('insert into records(import_id,line,body) values(?,?,?)',[(iid,line,json.dumps(r)) for line,r in rows])
+   # Existing practices own immutable original snapshots through these records.
+   c.execute('delete from records where import_id<>? and id not in (select record_id from changes)',(iid,))
+   c.execute('delete from imports where id<>? and id not in (select import_id from records)',(iid,))
+ except Exception:
+  if target is not None:target.unlink(missing_ok=True)
+  raise
+ # Old workbooks are no longer needed; practice originals are in SQLite.
+ for source in DATA.glob('fonte_*.xls'):
+  if source!=target:
+   try:source.unlink()
+   except OSError:pass
+ return len(rows)
 def warnings(r):
  out=[]
  if '[DA VERIFICARE]' in str(r.get('NOTE','')):out.append(r['NOTE'])
@@ -50,7 +73,7 @@ def warnings(r):
  return out
 def state():
  with db() as c:
-  return {'imports':[dict(r) for r in c.execute('select * from imports order by id desc')],'practices':[dict(r) for r in c.execute('select * from practices order by id desc')],'edit':EDIT}
+  return {'imports':[dict(r) for r in c.execute('select * from imports order by id desc limit 1')],'practices':[dict(r) for r in c.execute('select * from practices order by id desc')],'edit':EDIT}
 def practice(pid):
  with db() as c:
   p=c.execute('select * from practices where id=?',(pid,)).fetchone()
@@ -125,17 +148,12 @@ class Handler(BaseHTTPRequestHandler):
   try:
    payload=self.read_body()
    if self.path=='/import':
-    rows=parse(payload);sha=hashlib.sha256(payload).hexdigest()
-    with db() as c:
-     if c.execute('select id from imports where sha=?',(sha,)).fetchone():raise ValueError('Questo file è già stato importato.')
-     iid=c.execute('insert into imports(name,sha,created) values(?,?,?)',(__import__('urllib.parse',fromlist=['unquote']).unquote(self.headers.get('X-Name','Archivio.xls')),sha,now())).lastrowid
-     (DATA/f'fonte_{iid}.xls').write_bytes(payload)
-     c.executemany('insert into records(import_id,line,body) values(?,?,?)',[(iid,line,json.dumps(r)) for line,r in rows])
-    return self.send({'count':len(rows)})
+    name=__import__('urllib.parse',fromlist=['unquote']).unquote(self.headers.get('X-Name','Archivio.xls'))
+    return self.send({'count':replace_report(payload,name)})
    q=json.loads(payload or b'{}')
    if self.path=='/state':return self.send(state())
    if self.path=='/records':
-    with db() as c:rows=[{'id':r['id'],'line':r['line'],**json.loads(r['body'])} for r in c.execute('select * from records where import_id=?',(q['import_id'],))]
+    with db() as c:rows=[{'id':r['id'],'line':r['line'],**json.loads(r['body'])} for r in c.execute('select * from records where import_id=? and import_id=(select max(id) from imports)',(q['import_id'],))]
     return self.send([r for r in rows if in_scope(r)])
    if self.path=='/export-xlsx':return self.send(export_proposal(practice(int(q['id']))),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
    if self.path=='/practice':return self.send(practice(int(q['id'])))
@@ -147,7 +165,7 @@ class Handler(BaseHTTPRequestHandler):
     with db() as c:
      pid=c.execute('insert into practices(title,notes,created) values(?,?,?)',(title,q.get('notes',''),now())).lastrowid
      for rid in ids:
-      r=c.execute('select body from records where id=?',(rid,)).fetchone()
+      r=c.execute('select body from records where id=? and import_id=(select max(id) from imports)',(rid,)).fetchone()
       if not r:raise ValueError('Riga non trovata')
       c.execute('insert into changes(practice_id,record_id,body) values(?,?,?)',(pid,rid,r['body']))
     return self.send({'id':pid})
