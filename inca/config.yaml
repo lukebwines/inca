@@ -1,5 +1,5 @@
 name: INCA
-version: "0.1.13"
+version: "0.2.0"
 slug: inca
 description: Gestione delle proposte di modifica agli affidamenti didattici
 url: https://github.com/lukebwines/inca
@@ -15,7 +15,15 @@ ingress_stream: false
 panel_icon: mdi:school
 panel_title: INCA
 panel_admin: true
+ports:
+  8100/tcp: 8108
+ports_description:
+  8100/tcp: "INCA con login — destinazione del tunnel"
 options:
   allowed_user: ""
+  external_enabled: true
+  external_host: "inca.archis.uk"
 schema:
   allowed_user: str
+  external_enabled: bool
+  external_host: str

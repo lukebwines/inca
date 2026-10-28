@@ -6,6 +6,9 @@ sys.path.insert(0,str(pathlib.Path(__file__).parent/'vendor'))
 import xlrd
 sys.path.insert(0,str(pathlib.Path(__file__).parent))
 from excel_export import export_proposal
+import auth
+from http.cookies import SimpleCookie
+import threading
 ROOT=pathlib.Path(__file__).resolve().parent
 INGRESS=os.environ.get('INCA_INGRESS','0')=='1'
 DATA=pathlib.Path(os.environ.get('INCA_DATA', '/data' if INGRESS else str(ROOT/'dati'))); DATA.mkdir(exist_ok=True,parents=True)
@@ -25,6 +28,7 @@ def db():
 def init():
  with db() as c:
   c.executescript('CREATE TABLE IF NOT EXISTS imports(id INTEGER PRIMARY KEY,name TEXT,sha TEXT UNIQUE,created TEXT); CREATE TABLE IF NOT EXISTS records(id INTEGER PRIMARY KEY,import_id INTEGER,line INTEGER,body TEXT); CREATE TABLE IF NOT EXISTS practices(id INTEGER PRIMARY KEY,title TEXT,notes TEXT,created TEXT); CREATE TABLE IF NOT EXISTS changes(id INTEGER PRIMARY KEY,practice_id INTEGER,record_id INTEGER,body TEXT,version INTEGER DEFAULT 1,UNIQUE(practice_id,record_id)); CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY,change_id INTEGER,body TEXT,created TEXT);')
+ auth.init(db)
 def now():return datetime.datetime.now().isoformat(timespec='seconds')
 def parse(raw):
  if not raw:raise ValueError("Nessun contenuto ricevuto. Selezionare un file XLS non vuoto e riprovare.")
@@ -98,12 +102,17 @@ class Handler(BaseHTTPRequestHandler):
   elif self.headers.get('Host') not in {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'}:
    self.send({'error':'Host non valido'},status=403);return False
   self.path=urlsplit(self.path).path
+  self.user={'id':None,'username':'Home Assistant','role':'admin'};self.csrf=TOKEN;self.external=False
   return True
 
  def log_message(self,*a):pass
  def send(self,data,kind='application/json',status=200):
   raw=json.dumps(data,ensure_ascii=False).encode() if kind=='application/json' else data
-  self.send_response(status);self.send_header('Content-Type',kind);self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.end_headers();self.wfile.write(raw)
+  self.send_response(status);self.send_header('Content-Type',kind);self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.send_header('Referrer-Policy','same-origin');
+  for key,value in getattr(self,'response_headers',[]):self.send_header(key,value)
+  if getattr(self,'external',False):
+   self.send_header('X-Frame-Options','DENY');self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")
+  self.end_headers();self.wfile.write(raw)
  def do_GET(self):
   if not self.authorize():return
   if self.path=='/':
@@ -112,8 +121,7 @@ class Handler(BaseHTTPRequestHandler):
    base=base.rstrip('/')+'/'
    return self.send((ROOT/'index.html').read_text().replace('__TOKEN__',TOKEN).replace('__BASE__',html.escape(base,quote=True)).encode(),'text/html; charset=utf-8')
   return self.send({'error':'Non trovato'},status=404)
- def read_body(self):
-  limit=40_000_000
+ def read_body(self,limit=40_000_000):
   self.connection.settimeout(60)
   transfer=self.headers.get('Transfer-Encoding','').lower().strip()
   length=self.headers.get('Content-Length')
@@ -144,14 +152,35 @@ class Handler(BaseHTTPRequestHandler):
   return payload
  def do_POST(self):
   if not self.authorize():return
-  if self.headers.get('X-Token')!=TOKEN:return self.send({'error':'Sessione non valida: riaprire la pagina'},status=403)
+  if self.headers.get('X-Token')!=self.csrf:return self.send({'error':'Sessione non valida: riaprire la pagina'},status=403)
   try:
+   if self.user['role']!='admin' and self.path in ('/import','/backup','/users','/create-user','/update-user'):return self.send({'error':'Operazione riservata agli amministratori.'},status=403)
    payload=self.read_body()
    if self.path=='/import':
     name=__import__('urllib.parse',fromlist=['unquote']).unquote(self.headers.get('X-Name','Archivio.xls'))
     return self.send({'count':replace_report(payload,name)})
    q=json.loads(payload or b'{}')
-   if self.path=='/state':return self.send(state())
+   if self.path=='/state':return self.send({**state(),'auth':{**self.user,'external':self.external}})
+   if self.path=='/users':return self.send(auth.list_users(db))
+   if self.path=='/create-user':
+    uid=auth.create_user(db,q['username'],q['password'],q.get('role','operator'))
+    return self.send({'id':uid})
+   if self.path=='/update-user':
+    enabled=q.get('enabled')
+    if enabled is not None and not isinstance(enabled,bool):raise ValueError('Stato utente non valido.')
+    auth.update_user(db,int(q['id']),enabled=enabled,password=q.get('password'))
+    return self.send({'ok':True})
+   if self.path=='/change-password':
+    if not self.external:raise ValueError('Usare la gestione utenti da Home Assistant.')
+    with db() as c:user=c.execute('select password_hash from users where id=?',(self.user['id'],)).fetchone()
+    if not user or not auth.verify(q.get('current_password',''),user['password_hash']):raise ValueError('Password attuale non valida.')
+    auth.update_user(db,self.user['id'],password=q['password'])
+    self.response_headers=[('Set-Cookie',self.session_cookie('',0))]
+    return self.send({'ok':True})
+   if self.path=='/logout':
+    if self.external:
+     auth.logout(db,self.session_token);self.response_headers=[('Set-Cookie',self.session_cookie('',0))]
+    return self.send({'ok':True})
    if self.path=='/records':
     with db() as c:rows=[{'id':r['id'],'line':r['line'],**json.loads(r['body'])} for r in c.execute('select * from records where import_id=? and import_id=(select max(id) from imports)',(q['import_id'],))]
     return self.send([r for r in rows if in_scope(r)])
@@ -203,16 +232,66 @@ class Handler(BaseHTTPRequestHandler):
     with tempfile.TemporaryDirectory() as tmp:
      dest=sqlite3.connect(str(pathlib.Path(tmp)/'archivio.sqlite'))
      with db() as c:c.backup(dest)
-     dest.close();out=io.BytesIO()
+     dest.execute('delete from sessions');dest.commit();dest.close();out=io.BytesIO()
      with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
       z.write(pathlib.Path(tmp)/'archivio.sqlite','dati/archivio.sqlite')
       for p in DATA.glob('fonte_*.xls'):z.write(p,'dati/'+p.name)
      return self.send(out.getvalue(),'application/zip')
    raise ValueError('Operazione non disponibile')
   except Exception as e:self.send({'error':str(e)},status=400)
+class PublicHandler(Handler):
+ """Separate listener: HA/proxy identity headers never grant access here."""
+ external=True
+ def setup(self):
+  super().setup();self.connection.settimeout(20)
+ def public_host(self):return str(options().get('external_host','inca.archis.uk')).strip().lower()
+ def valid_host(self):
+  self.external=True;self.path=urlsplit(self.path).path
+  if self.headers.get('Host','').lower() not in (self.public_host(),self.public_host()+':443'):
+   self.send({'error':'Host non valido.'},status=403);return False
+  return True
+ def session_cookie(self,token,age=auth.SESSION_SECONDS):
+  return f'{auth.COOKIE}={token}; Path=/; Max-Age={age}; Secure; HttpOnly; SameSite=Lax'
+ def find_session(self):
+  try:
+   cookies=SimpleCookie();cookies.load(self.headers.get('Cookie',''));self.session_token=cookies[auth.COOKIE].value if auth.COOKIE in cookies else ''
+  except Exception:self.session_token=''
+  return auth.session(db,self.session_token)
+ def authorize(self):
+  if not self.valid_host():return False
+  if self.command=='POST' and self.headers.get('Origin')!='https://'+self.public_host():
+   self.send({'error':'Origine della richiesta non valida.'},status=403);return False
+  session=self.find_session()
+  if not session:
+   self.send({'error':'Sessione scaduta o accesso richiesto. Riapri INCA ed effettua il login.'},status=401);return False
+  self.csrf=session['csrf'];self.user={k:session[k] for k in ('id','username','role')}
+  return True
+ def do_GET(self):
+  if not self.valid_host():return
+  if self.path!='/':return self.send({'error':'Non trovato'},status=404)
+  session=self.find_session()
+  if not session:return self.send((ROOT/'login.html').read_bytes(),'text/html; charset=utf-8')
+  return self.send((ROOT/'index.html').read_text().replace('__TOKEN__',session['csrf']).replace('__BASE__','/').encode(),'text/html; charset=utf-8')
+ def do_POST(self):
+  if not self.valid_host():return
+  if self.path!='/login':return super().do_POST()
+  if self.headers.get('Origin')!='https://'+self.public_host() or self.headers.get('Content-Type','').split(';')[0]!='application/json':
+   return self.send({'error':'Richiesta di accesso non valida.'},status=403)
+  try:
+   data=json.loads(self.read_body(limit=16384))
+   token,error=auth.login(db,data.get('username',''),data.get('password',''))
+   if not token:return self.send({'error':error},status=429 if error.startswith('Troppi') else 401)
+   self.response_headers=[('Set-Cookie',self.session_cookie(token))]
+   return self.send({'ok':True})
+  except (ValueError,TypeError,KeyError,AttributeError):return self.send({'error':'Richiesta di accesso non valida.'},status=400)
+
 if __name__=='__main__':
  init()
  port=int(os.environ.get('INCA_PORT','8099'))
  server=HTTPServer(('0.0.0.0' if INGRESS else '127.0.0.1',port),Handler)
+ if INGRESS and options().get('external_enabled',True):
+  external=HTTPServer(('0.0.0.0',8100),PublicHandler)
+  threading.Thread(target=external.serve_forever,daemon=True).start()
+  print('INCA: servizio con login disponibile sulla porta interna 8100',flush=True)
  print('INCA avviato sulla porta '+str(port),flush=True)
  server.serve_forever()

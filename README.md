@@ -1,70 +1,84 @@
 # INCA
 
-Add-on personale per Home Assistant OS: importazione delle coperture didattiche,
-filtri, pratiche di variazione e confronto deliberato/proposta.
-
-## Stato
-
-Prima versione 0.1.0. Codice predisposto per Raspberry Pi aarch64 e amd64.
-Il collaudo reale su Home Assistant OS e la build del container sono ancora da eseguire.
-Il repository contiene esclusivamente codice e test sintetici: nessun archivio reale,
-nessun docente precompilato e nessuna credenziale.
+Gestionale degli affidamenti didattici per Home Assistant OS, Raspberry Pi aarch64 e amd64.
+Il repository contiene esclusivamente codice e test sintetici, senza dati reali o credenziali.
 
 ## Funzioni
 
-- Importazione del primo foglio di un Excel classico `.xls` con intestazioni compatibili.
-- Filtri combinati e selezione multipla degli incarichi.
-- Pratiche indipendenti con originale immutabile, proposta e storico dei salvataggi.
-- Modifica docente, CFU, ore, titolo affidamento, periodo, note e mutuazione.
-- Uscita dalla mutuazione con campi da completare esplicitamente.
-- CSV per Excel, stampa PDF dal browser e backup ZIP scaricabile.
-- Dati persistenti in `/data`, separati dal codice dell'add-on.
+- Importazione del primo foglio di un report `.xls`; ogni caricamento valido sostituisce il report attivo.
+- Archivio limitato ai codici corso M seguiti da tre caratteri; filtri collegati, ricerca e selezioni multiple.
+- Pratiche con originale conservato, proposta, storico, modifica ed eliminazione.
+- Nove campi modificabili: mutuazione, padre mutuazione, TAF, SSD, CFU, nome, cognome, totale ore e titolo affidamento.
+- Excel `.xlsx` con i 17 campi concordati e confronto deliberato/proposta, CSV, stampa PDF e backup ZIP.
+- Utenti locali amministratori e operatori. Tutti condividono archivio e pratiche.
 
-## Accesso
+## Installazione e primo amministratore
 
-L'interfaccia è disponibile esclusivamente tramite Ingress di Home Assistant.
-Nessuna porta viene pubblicata sulla rete. Sono accettate solo richieste dal proxy
-Ingress e con il nome utente Home Assistant configurato in `allowed_user`.
-Prima di aprire l'interfaccia, impostare quel valore nelle opzioni dell'add-on:
-è il nome di accesso, non il nome visualizzato. Se vuoto, l'accesso è negato.
+1. Aggiungere `https://github.com/lukebwines/inca` allo store delle app/add-on di Home Assistant e installare o aggiornare INCA.
+2. Mantenere `allowed_user` impostato al nome di accesso Home Assistant autorizzato (non il nome visualizzato).
+3. Avviare INCA e aprire **Interfaccia web** da Home Assistant.
+4. In **Utenti**, creare il primo account con ruolo **Amministratore** e password di almeno 12 caratteri.
+5. Aggiungere gli altri amministratori o operatori. Non ci sono password predefinite né registrazione pubblica.
 
-## Installazione da repository pubblico
+Gli amministratori gestiscono utenti, report e backup. Gli operatori consultano l'archivio,
+creano/modificano/eliminano pratiche ed esportano i confronti. La disattivazione e il reset
+della password invalidano tutte le sessioni dell'account. Non si può disattivare l'ultimo amministratore.
+Il titolare di `allowed_user` può sempre gestire gli utenti attraverso Ingress, anche per il recupero delle password.
 
-Dopo la pubblicazione su GitHub, aggiungere il repository
-`https://github.com/lukebwines/inca` allo store degli add-on di Home Assistant.
-Installare INCA, compilare `allowed_user` nelle opzioni, avviare e aprire
-l'interfaccia web. Non è necessario installare programmi sul PC.
+## Accesso dal tunnel: inca.archis.uk
 
-Il container viene costruito dal Supervisor sul dispositivo. Gli aggiornamenti
-si distribuiscono incrementando `version` in `inca/config.yaml` e aggiornando
-lo store. Verificare prima un backup e avviare l'aggiornamento dall'interfaccia.
-Non cambia il contenuto di `/data`. La prima installazione richiede accesso
-alla rete per scaricare l'immagine Python ufficiale.
+Configurazione dell'add-on:
 
-## Backup e ripristino
+```yaml
+allowed_user: "NOME_UTENTE_HOME_ASSISTANT"
+external_enabled: true
+external_host: "inca.archis.uk"
+```
 
-Scaricare periodicamente il backup dall'interfaccia. Il backup contiene dati
-personali e fonti Excel, quindi va conservato con le stesse cautele degli originali.
-In Home Assistant includere INCA nei backup per conservare `/data`.
-Il ripristino del backup scaricato dall'app è manuale: fermare INCA, conservare una
-copia dei dati correnti, ripristinare i contenuti della cartella `dati` dello ZIP
-nella directory persistente `/data`, quindi riavviare. Non sovrascrivere options.json.
+La porta interna **8100/tcp** del servizio con login viene pubblicata sulla porta **8108**
+di Home Assistant. Se la porta è già occupata, cambiarla nella sezione Rete dell'add-on e
+usare il valore scelto anche nel tunnel. La porta Ingress 8099 resta separata e non va esposta.
 
-## Limiti
+Nel tunnel già esistente aggiungere:
 
-Solo `.xls`, non `.xlsx`. Nessun collegamento a sistemi di Ateneo, nessuna approvazione,
-nessun calcolo automatico dei carichi. Ogni nuova importazione è separata.
-Le pratiche non vengono consolidate in una situazione vigente comune.
-Nuovi affidamenti, revoche e suddivisione su più righe non sono ancora implementati.
-Il programma conserva campi vuoti e segnala discordanze senza inventare valori.
-Le assegnazioni reali vanno inserite da fonti verificate dopo importazione.
+- Nome pubblico: `inca.archis.uk`
+- Tipo di servizio: **HTTP**
+- Destinazione: `http://IP_DI_HOME_ASSISTANT:8108` (sostituire il segnaposto con l'IP reale)
+- Host HTTP inoltrato: `inca.archis.uk` (normalmente già preservato; se necessario impostarlo esplicitamente)
 
-## Test
+Accedere dal browser tramite **https://inca.archis.uk**. Il tratto interno dal tunnel al servizio
+è HTTP; il browser usa HTTPS. I cookie di sessione sono Secure, HttpOnly e SameSite=Lax:
+il login non è destinato all'accesso diretto via HTTP all'IP. Non occorre aprire porte sul router.
+La creazione/configurazione del tunnel e del DNS è esterna al software e non è automatica.
+Per disattivare il listener con login, impostare `external_enabled: false` e riavviare.
 
-`python -m unittest discover -s tests -v`
+Ingress continua ad accettare solo il proxy Home Assistant con l'utente autorizzato.
+Il servizio pubblico non considera attendibili gli header di identità Home Assistant.
+Le password sono conservate come hash PBKDF2-SHA256 con sale individuale; le sessioni
+scadono dopo otto ore e richiedono token CSRF per le operazioni. I tentativi di login sono limitati.
 
-Per lo sviluppo locale, con Python già disponibile:
-`INCA_DATA=/percorso/temporaneo INCA_PORT=8099 python inca/app.py`.
-In questo caso il server ascolta solo su localhost. Il container attiva Ingress.
+## Dati e backup
 
-Il lettore XLS xlrd è incluso in `inca/vendor` con la relativa licenza.
+I dati persistono in `/data` durante riavvii e aggiornamenti. Le pratiche già salvate mantengono
+gli originali anche dopo la sostituzione del report. I file non validi non sostituiscono l'archivio.
+Gli account vengono creati sul dispositivo, non nel repository.
+
+Il backup ZIP, riservato agli amministratori, contiene il database, gli hash degli account e il
+report corrente; le sessioni sono escluse. Conservare il backup come documento riservato.
+Il ripristino dello ZIP è manuale: fermare INCA, salvare una copia della situazione corrente,
+ripristinare il contenuto della cartella `dati` in `/data`, senza sovrascrivere `options.json`,
+poi riavviare. I backup Home Assistant dell'add-on conservano l'intera directory persistente.
+
+## Limiti e verifiche
+
+Nessun collegamento ai sistemi di Ateneo, nessuna approvazione o riconciliazione automatica
+tra nuovi report e pratiche. Importazione `.xls` classica, non `.xlsx`. Nuovi affidamenti,
+revoche e suddivisioni su più righe non sono ancora implementati.
+Il cambio di nome/cognome non aggiorna matricola, codice fiscale o afferenza.
+
+Test locali: `python -m unittest discover -s tests -v` e `node tests/test_filters.cjs`.
+CI: test e build Docker. L'accesso attraverso il tunnel deve essere verificato sul dispositivo
+una volta configurato il DNS. Non è possibile verificare il Raspberry dalla suite locale.
+Per sviluppo locale: `INCA_DATA=/percorso/temporaneo INCA_PORT=8099 python inca/app.py`.
+In modalità locale il server ascolta solo su localhost; il listener esterno si avvia in modalità Ingress.
+Il lettore xlrd è incluso in `inca/vendor` con la relativa licenza.

@@ -1,3 +1,10 @@
+# 0.2.0
+
+- Login esterno multiutente per inca.archis.uk, con servizio separato su porta interna 8100 / host 8108.
+- Gestione utenti da Home Assistant o amministratore INCA: creazione, disattivazione, reset password e cambio password personale.
+- Ruoli amministratore/operatore su archivio condiviso; sessioni revocabili, password hash, controllo origine e CSRF, limite tentativi.
+- Nessuna password predefinita; primo amministratore creato da Ingress. Backup applicativo senza sessioni.
+
 # 0.1.13
 
 - Rimosso il filtro Anno accademico e ripristinato Mutuazione nell’ordine del report.
