@@ -1,30 +1,6 @@
 [
   {
-    "name": "CDS",
-    "hidden": false
-  },
-  {
-    "name": "ANNO ACCADEMICO",
-    "hidden": false
-  },
-  {
-    "name": "CFU TOTALI INS",
-    "hidden": false
-  },
-  {
-    "name": "CODICE INS",
-    "hidden": false
-  },
-  {
-    "name": "TIPOEROGAZIONE",
-    "hidden": false
-  },
-  {
     "name": "INSEGNAMENTO",
-    "hidden": false
-  },
-  {
-    "name": "CODICE UGOV",
     "hidden": false
   },
   {
@@ -36,23 +12,7 @@
     "hidden": false
   },
   {
-    "name": "UL",
-    "hidden": false
-  },
-  {
-    "name": "DISCRIMINANTE MODULO",
-    "hidden": false
-  },
-  {
     "name": "ANNO",
-    "hidden": false
-  },
-  {
-    "name": "MUTUAZIONE",
-    "hidden": false
-  },
-  {
-    "name": "PADRE MUTUAZIONE",
     "hidden": false
   },
   {
@@ -88,131 +48,7 @@
     "hidden": false
   },
   {
-    "name": "CF DOCENTE",
-    "hidden": false
-  },
-  {
-    "name": "CODICE GIA",
-    "hidden": false
-  },
-  {
-    "name": "DATA NASCITA",
-    "hidden": false
-  },
-  {
-    "name": "LUOGO NASCITA",
-    "hidden": false
-  },
-  {
-    "name": "PROV NASCITA",
-    "hidden": false
-  },
-  {
-    "name": "NAZIONE NASCITA",
-    "hidden": false
-  },
-  {
-    "name": "COMUNE RESIDENZA",
-    "hidden": false
-  },
-  {
-    "name": "PROV RESIDENZA",
-    "hidden": false
-  },
-  {
-    "name": "INDIRIZZO RESIDENZA",
-    "hidden": false
-  },
-  {
-    "name": "FRAZIONE RESIDENZA",
-    "hidden": false
-  },
-  {
-    "name": "CAP RESIDENZA",
-    "hidden": false
-  },
-  {
-    "name": "PROVENIENZA",
-    "hidden": false
-  },
-  {
-    "name": "SEZIONE",
-    "hidden": false
-  },
-  {
-    "name": "ZERO CARICO",
-    "hidden": false
-  },
-  {
-    "name": "ID COPERTURA",
-    "hidden": false
-  },
-  {
-    "name": "OREPREVLEZ",
-    "hidden": false
-  },
-  {
-    "name": "OREPREVLAB",
-    "hidden": false
-  },
-  {
-    "name": "OREPREVESE",
-    "hidden": false
-  },
-  {
-    "name": "OREPREVSEM",
-    "hidden": false
-  },
-  {
-    "name": "OREPREVALTRO",
-    "hidden": false
-  },
-  {
-    "name": "OREPREVTIR",
-    "hidden": false
-  },
-  {
     "name": "TOT ORE PREVISTE",
-    "hidden": false
-  },
-  {
-    "name": "TOT ORE EFFETTIVE",
-    "hidden": false
-  },
-  {
-    "name": "CARICO TOTALE LORDO",
-    "hidden": false
-  },
-  {
-    "name": "CARICO INCENTIVABILE EFFETTIVO DOCENZA",
-    "hidden": false
-  },
-  {
-    "name": "POTENZIALE SETTORE",
-    "hidden": false
-  },
-  {
-    "name": "CARICO SETTORE",
-    "hidden": false
-  },
-  {
-    "name": "DATA DELIBERA",
-    "hidden": false
-  },
-  {
-    "name": "NOTE DELIBERA",
-    "hidden": false
-  },
-  {
-    "name": "DATA DELIBERA COLLEGIO",
-    "hidden": false
-  },
-  {
-    "name": "NOTE DELIBERA COLLEGIO",
-    "hidden": false
-  },
-  {
-    "name": "DOCENTE DI RIFERIMENTO",
     "hidden": false
   },
   {

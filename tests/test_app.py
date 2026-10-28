@@ -59,11 +59,13 @@ class AppTests(unittest.TestCase):
    root=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
    cells={c.attrib['r']:c for c in root.findall('.//m:c',ns)}
    value=lambda ref: ''.join(cells[ref].itertext())
-   self.assertEqual(value('D2'),'DELIBERATO');self.assertEqual(value('D7'),'PROPOSTA DI MODIFICA')
-   self.assertEqual(value('D4'),'Corso sintetico');self.assertEqual(value('D9'),'Corso sintetico')
-   self.assertEqual(value('P4'),'1');self.assertEqual(value('P9'),'0.0');self.assertEqual(cells['P9'].attrib['s'],'2')
-   self.assertEqual(value('X9'),'=TEST()');self.assertEqual(cells['X9'].attrib['t'],'inlineStr');self.assertFalse(root.findall('.//m:f',ns))
-   self.assertEqual(value('R9'),'F');self.assertEqual(value('T9'),'TEST/01')
+   self.assertEqual(value('A2'),'DELIBERATO');self.assertEqual(value('A7'),'PROPOSTA DI MODIFICA')
+   self.assertEqual(value('A4'),'Attività di test');self.assertEqual(value('A9'),'Attività di test')
+   self.assertEqual(value('K9'),'=TEST()');self.assertEqual(cells['K9'].attrib['t'],'inlineStr');self.assertFalse(root.findall('.//m:f',ns))
+   self.assertEqual(value('E9'),'F');self.assertEqual(value('G9'),'TEST/01')
+   expected='INSEGNAMENTO|DISCRIMINANTE DI OI|MODULO|ANNO|TAF INSEGNAMENTO|FUORI PIANO|SSD INSEGNAMENTO|CFU|MOODLE|MATRICOLA DOCENTE|NOME DOCENTE|COGNOME DOCENTE|TOT ORE PREVISTE|PERIODO INIZIO|PERIODO FINE|DIPARTIMENTO AFFERENZA DOCENTE|TITOLO AFFIDAMENTO'.split('|')
+   self.assertEqual([value(c.attrib['r']) for c in root.find("m:sheetData/m:row[@r='3']",ns)],expected)
+   self.assertEqual(len(root.find("m:sheetData/m:row[@r='9']",ns)),17)
   self.assertEqual(self.call('/practice',{'id':pid})['items'][0]['before'],self.record)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':pid},token=False)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':999})
@@ -105,6 +107,19 @@ class AppTests(unittest.TestCase):
   self.assertEqual(self.call('/state')['imports'][0]['name'],'again.xls')
   self.assertEqual(self.call('/practice',{'id':pid}),before)
   with self.app.db() as c:self.assertEqual(c.execute('select count(*) from records').fetchone()[0],2)
+ def test_manage_practices(self):
+  pid=self.create();other=self.create();x=self.call('/practice',{'id':pid})['items'][0]
+  self.call('/save',{'id':x['id'],'version':1,'values':{'CFU':'2'}})
+  self.call('/update-practice',{'id':pid,'title':'Titolo aggiornato','notes':'Note aggiornate'})
+  self.assertEqual(self.call('/practice',{'id':pid})['practice']['title'],'Titolo aggiornato')
+  with self.assertRaises(urllib.error.HTTPError):self.call('/update-practice',{'id':pid,'title':' '})
+  with self.assertRaises(urllib.error.HTTPError):self.call('/delete-practice',{'id':pid},token=False)
+  self.call('/delete-practice',{'id':pid})
+  with self.assertRaises(urllib.error.HTTPError):self.call('/practice',{'id':pid})
+  self.assertEqual(self.call('/practice',{'id':other})['items'][0]['before'],self.record)
+  with self.app.db() as c:
+   self.assertEqual(c.execute('select count(*) from history').fetchone()[0],0)
+   self.assertEqual(c.execute('select count(*) from records').fetchone()[0],1)
  def test_backup(self):
   self.create();self.app.DATA.joinpath('fonte_1.xls').write_bytes(b'synthetic bytes')
   raw=self.call('/backup')

@@ -1,3 +1,8 @@
+# 0.1.10
+
+- Excel limitato ai 17 campi richiesti, tutti visibili, con blocchi prima/dopo.
+- Modifica titolo e note delle pratiche; eliminazione con conferma, incluse proposte e storico.
+
 # 0.1.9
 
 - Ogni importazione sostituisce il report attivo e rimuove le vecchie righe non utilizzate nelle pratiche.

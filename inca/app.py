@@ -157,6 +157,19 @@ class Handler(BaseHTTPRequestHandler):
     return self.send([r for r in rows if in_scope(r)])
    if self.path=='/export-xlsx':return self.send(export_proposal(practice(int(q['id']))),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
    if self.path=='/practice':return self.send(practice(int(q['id'])))
+   if self.path in ('/update-practice','/delete-practice'):
+    pid=int(q['id'])
+    with db() as c:
+     if not c.execute('select id from practices where id=?',(pid,)).fetchone():raise ValueError('Pratica inesistente')
+     if self.path=='/update-practice':
+      title=str(q['title']).strip()
+      if not title:raise ValueError('Inserire un titolo.')
+      c.execute('update practices set title=?,notes=? where id=?',(title,str(q.get('notes','')),pid))
+     else:
+      c.execute('delete from history where change_id in (select id from changes where practice_id=?)',(pid,))
+      c.execute('delete from changes where practice_id=?',(pid,))
+      c.execute('delete from practices where id=?',(pid,))
+    return self.send({'ok':True})
    if self.path=='/create':
     title=q['title'].strip()
     if not title:raise ValueError('Inserire un titolo.')
