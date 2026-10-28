@@ -1,3 +1,7 @@
+# 0.1.11
+
+- Rimosso il filtro Scuola e aggiunto Modulo, con ricerca e selezione multipla collegata.
+
 # 0.1.10
 
 - Excel limitato ai 17 campi richiesti, tutti visibili, con blocchi prima/dopo.
