@@ -1,3 +1,8 @@
+# 0.2.1
+
+- Corretto blocco iniziale del menu utenti: aggiunti gli elementi HTML richiesti dalla navigazione account.
+- Test della navigazione su elementi effettivamente presenti nel documento.
+
 # 0.2.0
 
 - Login esterno multiutente per inca.archis.uk, con servizio separato su porta interna 8100 / host 8108.
