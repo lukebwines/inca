@@ -10,8 +10,12 @@ ROOT=pathlib.Path(__file__).resolve().parent
 INGRESS=os.environ.get('INCA_INGRESS','0')=='1'
 DATA=pathlib.Path(os.environ.get('INCA_DATA', '/data' if INGRESS else str(ROOT/'dati'))); DATA.mkdir(exist_ok=True,parents=True)
 TOKEN=secrets.token_urlsafe(32)
-EDIT=['NOME DOCENTE','COGNOME DOCENTE','MATRICOLA DOCENTE','CF DOCENTE','DIPARTIMENTO AFFERENZA DOCENTE','CFU','OREPREVLEZ','OREPREVLAB','OREPREVESE','OREPREVSEM','OREPREVALTRO','OREPREVTIR','TOT ORE PREVISTE','TITOLO AFFIDAMENTO','MUTUAZIONE','PADRE MUTUAZIONE','PERIODO INIZIO','PERIODO FINE','NOTE']
-NUM={'CFU','MUTUAZIONE',*[k for k in EDIT if k.startswith('OREPREV')],'TOT ORE PREVISTE'}
+EDIT=['MUTUAZIONE','PADRE MUTUAZIONE','TAF INSEGNAMENTO','SSD INSEGNAMENTO','CFU','NOME DOCENTE','COGNOME DOCENTE','TOT ORE PREVISTE','TITOLO AFFIDAMENTO']
+NUM={'CFU','MUTUAZIONE','TOT ORE PREVISTE'}
+HOUR_PARTS=['OREPREVLEZ','OREPREVLAB','OREPREVESE','OREPREVSEM','OREPREVALTRO','OREPREVTIR']
+def in_scope(record):
+ code=str(record.get('CODICE CORSO','')).strip().upper()
+ return len(code)==4 and code.startswith('M') and not any(c.isspace() for c in code)
 @contextmanager
 def db():
  c=sqlite3.connect(DATA/'archivio.sqlite'); c.row_factory=sqlite3.Row
@@ -41,7 +45,7 @@ def warnings(r):
  if str(r.get('COGNOME DOCENTE','')).lower()=='da definire':out.append('Docente da definire.')
  cf=str(r.get('CF DOCENTE',''))
  if cf and len(cf)!=16:out.append('Contenuto del campo CF DOCENTE da verificare.')
- parts=[r.get(k,'') for k in EDIT if k.startswith('OREPREV')]; total=r.get('TOT ORE PREVISTE','')
+ parts=[r.get(k,'') for k in HOUR_PARTS]; total=r.get('TOT ORE PREVISTE','')
  if total!='' and all(v=='' or isinstance(v,(int,float)) for v in parts) and isinstance(total,(int,float)) and abs(sum(v or 0 for v in parts)-total)>0.001:out.append('Somma delle ore per tipologia diversa dal totale: verificare.')
  return out
 def state():
@@ -132,7 +136,7 @@ class Handler(BaseHTTPRequestHandler):
    if self.path=='/state':return self.send(state())
    if self.path=='/records':
     with db() as c:rows=[{'id':r['id'],'line':r['line'],**json.loads(r['body'])} for r in c.execute('select * from records where import_id=?',(q['import_id'],))]
-    return self.send(rows)
+    return self.send([r for r in rows if in_scope(r)])
    if self.path=='/export-xlsx':return self.send(export_proposal(practice(int(q['id']))),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
    if self.path=='/practice':return self.send(practice(int(q['id'])))
    if self.path=='/create':
@@ -158,9 +162,7 @@ class Handler(BaseHTTPRequestHandler):
        v=float(str(v).replace(',','.'))
        if not __import__('math').isfinite(v) or v<0:raise ValueError('Inserire numeri non negativi.')
        if k=='MUTUAZIONE' and v not in (0,1):raise ValueError('Mutuazione deve essere 0 o 1.')
-      if k in ['PERIODO INIZIO','PERIODO FINE'] and v:datetime.date.fromisoformat(v)
       r[k]=v
-     if r.get('PERIODO INIZIO') and r.get('PERIODO FINE') and r['PERIODO INIZIO']>r['PERIODO FINE']:raise ValueError('La data finale precede quella iniziale.')
      if r.get('MUTUAZIONE')==0 and r.get('PADRE MUTUAZIONE'):raise ValueError('Rimuovere il padre mutuazione nella proposta autonoma.')
      c.execute('insert into history(change_id,body,created) values(?,?,?)',(row['id'],row['body'],now()))
      c.execute('update changes set body=?,version=version+1 where id=?',(json.dumps(r),row['id']))

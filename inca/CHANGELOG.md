@@ -1,3 +1,8 @@
+# 0.1.7
+
+- Archivio e filtri limitati ai codici corso M???; originali conservati integralmente.
+- Nove campi modificabili: Mutuazione, Padre mutuazione, TAF, SSD, CFU, Nome, Cognome, Totale ore e Titolo affidamento.
+
 # 0.1.6
 
 - Filtri Cognome docente e Nome docente con selezione multipla, collegato agli altri filtri e alla ricerca libera.

@@ -52,7 +52,7 @@ class AppTests(unittest.TestCase):
  def test_excel_export(self):
   import xml.etree.ElementTree as ET
   pid=self.create();x=self.call('/practice',{'id':pid})['items'][0]
-  self.call('/save',{'id':x['id'],'version':1,'values':{'MUTUAZIONE':'0','PADRE MUTUAZIONE':'','NOME DOCENTE':'=TEST()','NOTE':'Nota & verifica','PERIODO INIZIO':'2026-10-05'}})
+  self.call('/save',{'id':x['id'],'version':1,'values':{'MUTUAZIONE':'0','PADRE MUTUAZIONE':'','NOME DOCENTE':'=TEST()','TAF INSEGNAMENTO':'F','SSD INSEGNAMENTO':'TEST/01'}})
   raw=self.call('/export-xlsx',{'id':pid});ns={'m':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
   with zipfile.ZipFile(io.BytesIO(raw)) as z:
    for name in z.namelist():ET.fromstring(z.read(name))
@@ -63,10 +63,24 @@ class AppTests(unittest.TestCase):
    self.assertEqual(value('D4'),'Corso sintetico');self.assertEqual(value('D9'),'Corso sintetico')
    self.assertEqual(value('P4'),'1');self.assertEqual(value('P9'),'0.0');self.assertEqual(cells['P9'].attrib['s'],'2')
    self.assertEqual(value('X9'),'=TEST()');self.assertEqual(cells['X9'].attrib['t'],'inlineStr');self.assertFalse(root.findall('.//m:f',ns))
-   self.assertEqual(value('BJ9'),'Nota & verifica');self.assertEqual(cells['BF9'].attrib['s'],'4')
+   self.assertEqual(value('R9'),'F');self.assertEqual(value('T9'),'TEST/01')
   self.assertEqual(self.call('/practice',{'id':pid})['items'][0]['before'],self.record)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':pid},token=False)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':999})
+ def test_course_scope_and_editable_fields(self):
+  for code,expected in [('M123',True),('MABC',True),(' M001 ',True),('X123',False),('M1234',False),('M12',False),('',False)]:
+   self.assertEqual(self.app.in_scope({'CODICE CORSO':code}),expected)
+  with self.app.db() as c:
+   for code in ['M001','X001','M1234']:
+    c.execute('insert into records(import_id,line,body) values(?,?,?)',(1,3,json.dumps({**self.record,'CODICE CORSO':code})))
+  self.assertEqual([r['CODICE CORSO'] for r in self.call('/records',{'import_id':1})],['M001'])
+  pid=self.create();x=self.call('/practice',{'id':pid})['items'][0]
+  self.assertEqual(len(self.call('/state')['edit']),9)
+  for field in ['NOTE','MATRICOLA DOCENTE','CF DOCENTE','PERIODO INIZIO','OREPREVLEZ']:
+   with self.assertRaises(urllib.error.HTTPError):self.call('/save',{'id':x['id'],'version':1,'values':{field:'test'}})
+  self.call('/save',{'id':x['id'],'version':1,'values':{'TAF INSEGNAMENTO':'F','SSD INSEGNAMENTO':'TEST/01'}})
+  result=self.call('/practice',{'id':pid})['items'][0]
+  self.assertEqual(result['after']['TAF INSEGNAMENTO'],'F');self.assertEqual(result['before'],self.record)
  def test_backup(self):
   self.create();self.app.DATA.joinpath('fonte_1.xls').write_bytes(b'synthetic bytes')
   raw=self.call('/backup')
