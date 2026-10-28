@@ -1,3 +1,7 @@
+# 0.2.3
+
+- Inclusi anche i codici corso MM? di tre caratteri, oltre a MM?? e M??R.
+
 # 0.2.2
 
 - Archivio e filtri limitati ai codici corso di quattro caratteri MM?? oppure M??R.

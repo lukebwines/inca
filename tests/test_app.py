@@ -70,12 +70,12 @@ class AppTests(unittest.TestCase):
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':pid},token=False)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':999})
  def test_course_scope_and_editable_fields(self):
-  for code,expected in [('MM01',True),('MMAR',True),('MA1R',True),(' M00R ',True),('mm01',True),('M123',False),('MABC',False),('M001',False),('MM 1',False),('MM123',False),('X123',False),('M1234',False),('M12',False),('',False)]:
+  for code,expected in [('MM1',True),(' mma ',True),('MM',False),('M1R',False),('MM01',True),('MMAR',True),('MA1R',True),(' M00R ',True),('mm01',True),('M123',False),('MABC',False),('M001',False),('MM 1',False),('MM123',False),('X123',False),('M1234',False),('M12',False),('',False)]:
    self.assertEqual(self.app.in_scope({'CODICE CORSO':code}),expected)
   with self.app.db() as c:
-   for code in ['MM01','M01R','M001','X001','M1234']:
+   for code in ['MM1','MM01','M01R','M001','X001','M1234']:
     c.execute('insert into records(import_id,line,body) values(?,?,?)',(1,3,json.dumps({**self.record,'CODICE CORSO':code})))
-  self.assertEqual([r['CODICE CORSO'] for r in self.call('/records',{'import_id':1})],['MM01','M01R'])
+  self.assertEqual([r['CODICE CORSO'] for r in self.call('/records',{'import_id':1})],['MM1','MM01','M01R'])
   pid=self.create();x=self.call('/practice',{'id':pid})['items'][0]
   self.assertEqual(len(self.call('/state')['edit']),9)
   for field in ['NOTE','MATRICOLA DOCENTE','CF DOCENTE','PERIODO INIZIO','OREPREVLEZ']:
