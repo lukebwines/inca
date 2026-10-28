@@ -1,3 +1,8 @@
+# 0.1.8
+
+- Ricerca per lettere iniziali in ogni filtro, senza distinzione di maiuscole e accenti.
+- Le ricerche negli elenchi mantengono le selezioni; azzeramento singolo e globale ripuliscono anche il testo.
+
 # 0.1.7
 
 - Archivio e filtri limitati ai codici corso M???; originali conservati integralmente.

@@ -43,6 +43,12 @@ context.document.querySelectorAll=selector=>selector===`input[data-filter="${fil
 run('updateFilterOptions()');assert.equal(label.hidden,false);assert.equal(input.checked,true);assert.match(span.textContent,/nessuna corrispondenza/);
 choose('CODICE CORSO','001',false);assert.equal(label.hidden,true);
 run('resetFilters()');count(3);assert.equal(label.hidden,false);assert.deepEqual(options('CODICE CORSO'),['001','002','003']);
+// Local search hides choices only; it never changes selected records.
+get('#fsearch'+filters.indexOf('CODICE CORSO')).value='99';run('updateFilterOptions()');assert.equal(label.hidden,true);count(3);
+get('#fsearch'+filters.indexOf('CODICE CORSO')).value='00';run('updateFilterOptions()');assert.equal(label.hidden,false);
+assert.equal(run("searchKey('  ÈLISA  ')"),'elisa');
+choose('CODICE CORSO','001');get('#fsearch'+filters.indexOf('CODICE CORSO')).value='99';run('updateFilterOptions()');assert.equal(label.hidden,true);count(1);assert.equal(input.checked,true);
+run('resetFilters()');assert.equal(get('#fsearch'+filters.indexOf('CODICE CORSO')).value,'');assert.equal(label.hidden,false);count(3);
 context.document.querySelectorAll=()=>[];
 // Exercise menu generation and source switching with no imported archive.
 get('#source').value='';
