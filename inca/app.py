@@ -18,7 +18,7 @@ NUM={'CFU','MUTUAZIONE','TOT ORE PREVISTE'}
 HOUR_PARTS=['OREPREVLEZ','OREPREVLAB','OREPREVESE','OREPREVSEM','OREPREVALTRO','OREPREVTIR']
 def in_scope(record):
  code=str(record.get('CODICE CORSO','')).strip().upper()
- return len(code)==4 and code.startswith('M') and not any(c.isspace() for c in code)
+ return len(code)==4 and (code.startswith('MM') or (code.startswith('M') and code.endswith('R'))) and not any(c.isspace() for c in code)
 @contextmanager
 def db():
  c=sqlite3.connect(DATA/'archivio.sqlite'); c.row_factory=sqlite3.Row

@@ -1,3 +1,7 @@
+# 0.2.2
+
+- Archivio e filtri limitati ai codici corso di quattro caratteri MM?? oppure M??R.
+
 # 0.2.1
 
 - Corretto blocco iniziale del menu utenti: aggiunti gli elementi HTML richiesti dalla navigazione account.

@@ -6,7 +6,7 @@ Il repository contiene esclusivamente codice e test sintetici, senza dati reali 
 ## Funzioni
 
 - Importazione del primo foglio di un report `.xls`; ogni caricamento valido sostituisce il report attivo.
-- Archivio limitato ai codici corso M seguiti da tre caratteri; filtri collegati, ricerca e selezioni multiple.
+- Archivio limitato ai codici corso MM?? oppure M??R (quattro caratteri); filtri collegati, ricerca e selezioni multiple.
 - Pratiche con originale conservato, proposta, storico, modifica ed eliminazione.
 - Nove campi modificabili: mutuazione, padre mutuazione, TAF, SSD, CFU, nome, cognome, totale ore e titolo affidamento.
 - Excel `.xlsx` con i 17 campi concordati e confronto deliberato/proposta, CSV, stampa PDF e backup ZIP.
