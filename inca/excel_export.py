@@ -21,22 +21,31 @@ def export_proposal(practice):
   value=re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]','',str(value))
   return f'<c r="{ref}" s="{style}" t="inlineStr"><is><t xml:space="preserve">{escape(value)}</t></is></c>'
  def row(n,values):cells.append(f'<row r="{n}" ht="90" customHeight="1">'+''.join(values)+'</row>')
- n=len(items);second=n+6
+ originals=[x for x in items if x.get('kind')!='new']
+ n=len(originals);second=n+6
  for label,start,key in [('DELIBERATO',2,'before'),('PROPOSTA DI MODIFICA',second,'after')]:
   row(start,[cell(start,1,label,1)])
   row(start+1,[cell(start+1,j+1,c.get('label',c['name']),1) for j,c in enumerate(schema)])
-  for i,item in enumerate(items):
+  for i,item in enumerate(originals if key=='before' else items):
    rn=start+2+i;values=[]
    for j,c in enumerate(schema):
     k=c['name'];value=item[key].get(k,'');changed=key=='after' and str(value)!=str(item['before'].get(k,''));style=2 if changed else 0
+    if c.get('item_note'):
+     value=item.get('note','') if key=='after' else '';style=2 if value else 0
+    if item.get('kind')=='new' and value in ('',None) and k in ('CFU','NOME DOCENTE','COGNOME DOCENTE','TITOLO AFFIDAMENTO','MATRICOLA DOCENTE','DIPARTIMENTO AFFERENZA DOCENTE'):value='[DA VERIFICARE]'
     if c.get('original_only'):
      value=item['before'].get(k,'');value='[DA VERIFICARE]' if value is None or value=='' else value;style=0
     if (k.startswith('DATA ') or k.startswith('PERIODO ')) and isinstance(value,str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}',value):
      value=(datetime.date.fromisoformat(value)-datetime.date(1899,12,30)).days;style=4 if changed else 3
     values.append(cell(rn,j+1,value,style))
    row(rn,values)
+ footer=second+len(items)+3;merged=[]
+ notes=[practice.get('practice',{}).get('notes','')]+practice.get('hour_checks',[])
+ for note in notes:
+  if note:
+   row(footer,[cell(footer,1,note)]);merged.append(f'<mergeCell ref="A{footer}:{column(len(schema))}{footer}"/>');footer+=1
  cols=''.join(f'<col min="{j+1}" max="{j+1}" width="{45 if c["name"] in ("CDS","INSEGNAMENTO","MODULO","PADRE MUTUAZIONE","TITOLO AFFIDAMENTO") else 20}" customWidth="1" hidden="{int(c["hidden"])}"/>' for j,c in enumerate(schema))
- sheet=f'<worksheet xmlns="{NS}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>{cols}</cols><sheetData>'+''.join(cells)+'</sheetData></worksheet>'
+ sheet=f'<worksheet xmlns="{NS}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>{cols}</cols><sheetData>'+''.join(cells)+'</sheetData>'+('<mergeCells count="'+str(len(merged))+'">'+''.join(merged)+'</mergeCells>' if merged else '')+'</worksheet>'
  styles=f'''<styleSheet xmlns="{NS}"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE699"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="5">'''+''.join(f'<xf numFmtId="{164 if i>=3 else 0}" fontId="{1 if i==1 else 0}" fillId="{2 if i==1 else 3 if i in (2,4) else 0}" borderId="0" xfId="0" applyAlignment="1" applyNumberFormat="1"><alignment vertical="top" wrapText="1"/></xf>' for i in range(5))+'</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'
  relns='http://schemas.openxmlformats.org/package/2006/relationships';base='http://schemas.openxmlformats.org/officeDocument/2006/relationships/'
  files={

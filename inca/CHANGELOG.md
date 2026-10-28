@@ -1,3 +1,9 @@
+# 0.3.0
+
+- Suddivisione delle ore di lezione in nuove coperture proposte, con riduzione delle ore originarie e controllo del totale.
+- Note per incarico esportate in Excel/PDF; originali immutabili, CFU e anagrafica dei nuovi incarichi da verificare.
+- CDS e Anno accademico nell’Excel; nome file ricavato dal titolo della pratica.
+
 # 0.2.4
 
 - Saturazione docente a preventivo premodifica in Excel e stampa PDF, sempre letta dall’originale della pratica.

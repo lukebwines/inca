@@ -8,8 +8,8 @@ Il repository contiene esclusivamente codice e test sintetici, senza dati reali 
 - Importazione del primo foglio di un report `.xls`; ogni caricamento valido sostituisce il report attivo.
 - Archivio limitato ai codici corso MM? (tre caratteri), MM?? oppure M??R (quattro caratteri); filtri collegati, ricerca e selezioni multiple.
 - Pratiche con originale conservato, proposta, storico, modifica ed eliminazione.
-- Nove campi modificabili: mutuazione, padre mutuazione, TAF, SSD, CFU, nome, cognome, totale ore e titolo affidamento.
-- Excel `.xlsx` con i 17 campi concordati più la saturazione premodifica e confronto deliberato/proposta, CSV, stampa PDF e backup ZIP.
+- Nove campi modificabili, oltre alle note della modifica: mutuazione, padre mutuazione, TAF, SSD, CFU, nome, cognome, totale ore e titolo affidamento.
+- Excel `.xlsx` con CDS, anno accademico, i 17 campi concordati, saturazione premodifica, note e confronto deliberato/proposta, CSV, stampa PDF e backup ZIP.
 - Utenti locali amministratori e operatori. Tutti condividono archivio e pratiche.
 
 ## Installazione e primo amministratore
@@ -72,8 +72,7 @@ poi riavviare. I backup Home Assistant dell'add-on conservano l'intera directory
 ## Limiti e verifiche
 
 Nessun collegamento ai sistemi di Ateneo, nessuna approvazione o riconciliazione automatica
-tra nuovi report e pratiche. Importazione `.xls` classica, non `.xlsx`. Nuovi affidamenti,
-revoche e suddivisioni su più righe non sono ancora implementati.
+tra nuovi report e pratiche. Importazione `.xls` classica, non `.xlsx`. Le nuove coperture sono proposte derivanti da suddivisioni di ore di lezione; nuovi affidamenti autonomi e revoche non sono ancora implementati.
 Il cambio di nome/cognome non aggiorna matricola, codice fiscale o afferenza.
 
 Test locali: `python -m unittest discover -s tests -v` e `node tests/test_filters.cjs`.
@@ -82,3 +81,21 @@ una volta configurato il DNS. Non è possibile verificare il Raspberry dalla sui
 Per sviluppo locale: `INCA_DATA=/percorso/temporaneo INCA_PORT=8099 python inca/app.py`.
 In modalità locale il server ascolta solo su localhost; il listener esterno si avvia in modalità Ingress.
 Il lettore xlrd è incluso in `inca/vendor` con la relativa licenza.
+
+## Suddividere un incarico
+
+Aprire la pratica e premere **Suddividi ore di lezione** sulla copertura originaria.
+Verificare le ore di lezione attuali, inserire uno o più destinatari con le ore cedute e le note.
+Il salvataggio riduce il totale e le ore di lezione del docente originario e crea nuove righe solo nella proposta.
+I dati originali e la saturazione premodifica rimangono invariati. Il nome file Excel deriva dal titolo della pratica;
+i caratteri non ammessi nei nomi file vengono sostituiti.
+
+Nome, cognome e ore provengono dai dati inseriti. CFU, anagrafica e titolo non vengono dedotti dall'incarico originario:
+i dati mancanti nelle nuove coperture sono indicati come **[DA VERIFICARE]** nell'Excel.
+Verificare prima se i destinatari hanno già una copertura sullo stesso modulo, per evitare duplicazioni.
+Le note di ciascuna riga sono modificabili insieme alla proposta; quelle generali restano in **Modifica titolo e note**.
+Le note compaiono in Excel e PDF e possono descrivere coordinamento, decorrenza e adempimenti da verificare.
+
+Il confronto mostra un controllo del totale per ciascuna suddivisione. Una successiva modifica delle ore può
+creare temporaneamente una differenza: questa viene segnalata anche negli output, senza correggere automaticamente
+le ore degli altri docenti. Per le righe coinvolte in una suddivisione, modificare il totale aggiorna le ore di lezione.

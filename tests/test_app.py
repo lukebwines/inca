@@ -60,12 +60,12 @@ class AppTests(unittest.TestCase):
    cells={c.attrib['r']:c for c in root.findall('.//m:c',ns)}
    value=lambda ref: ''.join(cells[ref].itertext())
    self.assertEqual(value('A2'),'DELIBERATO');self.assertEqual(value('A7'),'PROPOSTA DI MODIFICA')
-   self.assertEqual(value('A4'),'Attività di test');self.assertEqual(value('A9'),'Attività di test')
-   self.assertEqual(value('K9'),'=TEST()');self.assertEqual(cells['K9'].attrib['t'],'inlineStr');self.assertFalse(root.findall('.//m:f',ns))
-   self.assertEqual(value('E9'),'F');self.assertEqual(value('G9'),'TEST/01')
-   expected='INSEGNAMENTO|DISCRIMINANTE DI OI|MODULO|ANNO|TAF INSEGNAMENTO|FUORI PIANO|SSD INSEGNAMENTO|CFU|MOODLE|MATRICOLA DOCENTE|NOME DOCENTE|COGNOME DOCENTE|TOT ORE PREVISTE|PERIODO INIZIO|PERIODO FINE|DIPARTIMENTO AFFERENZA DOCENTE|TITOLO AFFIDAMENTO|SATURAZIONE DOCENTE A PREVENTIVO (PREMODIFICA)'.split('|')
+   self.assertEqual(value('C4'),'Attività di test');self.assertEqual(value('C9'),'Attività di test')
+   self.assertEqual(value('M9'),'=TEST()');self.assertEqual(cells['M9'].attrib['t'],'inlineStr');self.assertFalse(root.findall('.//m:f',ns))
+   self.assertEqual(value('G9'),'F');self.assertEqual(value('I9'),'TEST/01')
+   expected='CDS|ANNO ACCADEMICO|INSEGNAMENTO|DISCRIMINANTE DI OI|MODULO|ANNO|TAF INSEGNAMENTO|FUORI PIANO|SSD INSEGNAMENTO|CFU|MOODLE|MATRICOLA DOCENTE|NOME DOCENTE|COGNOME DOCENTE|TOT ORE PREVISTE|PERIODO INIZIO|PERIODO FINE|DIPARTIMENTO AFFERENZA DOCENTE|TITOLO AFFIDAMENTO|SATURAZIONE DOCENTE A PREVENTIVO (PREMODIFICA)|NOTE DELLA MODIFICA'.split('|')
    self.assertEqual([value(c.attrib['r']) for c in root.find("m:sheetData/m:row[@r='3']",ns)],expected)
-   self.assertEqual(len(root.find("m:sheetData/m:row[@r='9']",ns)),18)
+   self.assertEqual(len(root.find("m:sheetData/m:row[@r='9']",ns)),21)
   self.assertEqual(self.call('/practice',{'id':pid})['items'][0]['before'],self.record)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':pid},token=False)
   with self.assertRaises(urllib.error.HTTPError):self.call('/export-xlsx',{'id':999})
@@ -77,10 +77,41 @@ class AppTests(unittest.TestCase):
    raw=self.app.export_proposal({'items':[{'before':before,'after':{'SATURAZIONE DOCENTE A PREVENTIVO':999}}]})
    with zipfile.ZipFile(io.BytesIO(raw)) as z:
     root=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
-    for ref in ('R4','R9'):
+    for ref in ('T4','T9'):
      cell=root.find(f".//m:c[@r='{ref}']",ns)
      self.assertEqual(''.join(cell.itertext()),'[DA VERIFICARE]' if value is None or value=='' else str(value))
      self.assertEqual(cell.attrib['s'],'0')
+ def test_split_lecture_hours_lifecycle(self):
+  import xml.etree.ElementTree as ET
+  from unittest.mock import patch
+  source={**self.record,'MUTUAZIONE':0,'PADRE MUTUAZIONE':'','TOT ORE PREVISTE':10,'OREPREVLEZ':10,'OREPREVESE':0,'CF DOCENTE':'SYNTHETIC-SOURCE','MATRICOLA DOCENTE':'SOURCE-ID','NOME DOCENTE':'Origine','COGNOME DOCENTE':'Test','SATURAZIONE DOCENTE A PREVENTIVO':100}
+  with self.app.db() as c:c.execute('update records set body=? where id=1',(json.dumps(source),))
+  pid=self.create();x=self.call('/practice',{'id':pid})['items'][0]
+  data={'id':x['id'],'version':1,'lecture_hours':10,'allocations':[{'name':'Uno','surname':'Sintetico','hours':2},{'name':'Due','surname':'Sintetico','hours':2}],'note':'Coordinamento: [DA VERIFICARE]'}
+  with self.assertRaises(urllib.error.HTTPError):self.call('/split',{**data,'allocations':[{'surname':'Test','hours':11}]})
+  self.assertEqual(len(self.call('/practice',{'id':pid})['items']),1)
+  self.call('/split',data)
+  result=self.call('/practice',{'id':pid});original,first,second=result['items']
+  self.assertEqual(original['before'],source);self.assertEqual(original['after']['TOT ORE PREVISTE'],6);self.assertEqual(original['after']['OREPREVLEZ'],6)
+  for new in (first,second):
+   self.assertEqual(new['before'],{});self.assertEqual(new['kind'],'new');self.assertEqual(new['after']['TOT ORE PREVISTE'],2)
+   for key in ('CF DOCENTE','MATRICOLA DOCENTE','CFU','TITOLO AFFIDAMENTO'):self.assertEqual(new['after'][key],'')
+  self.assertIn('Totale invariato',result['hour_checks'][0])
+  with self.assertRaises(urllib.error.HTTPError):self.call('/split',data)
+  raw=self.call('/export-xlsx',{'id':pid});ns={'m':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+  with zipfile.ZipFile(io.BytesIO(raw)) as z:
+   root=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
+   value=lambda ref: ''.join(root.find(f".//m:c[@r='{ref}']",ns).itertext())
+   self.assertEqual(value('O4'),'10');self.assertEqual(value('O9'),'6.0');self.assertEqual(value('O10'),'2.0');self.assertEqual(value('O11'),'2.0')
+   self.assertEqual(value('J10'),'[DA VERIFICARE]');self.assertIn('Redistribuzione',value('U9'))
+  self.call('/save',{'id':first['id'],'version':1,'values':{'TOT ORE PREVISTE':'3'},'note':'Nota corretta'})
+  result=self.call('/practice',{'id':pid});self.assertIn('[DA VERIFICARE]',result['hour_checks'][0]);self.assertEqual(result['items'][1]['after']['OREPREVLEZ'],3)
+  self.call('/save',{'id':original['id'],'version':2,'values':{'TOT ORE PREVISTE':'5'}})
+  result=self.call('/practice',{'id':pid});self.assertIn('Totale invariato',result['hour_checks'][0]);self.assertEqual(result['items'][0]['after']['OREPREVLEZ'],5)
+  with patch.object(self.app,'parse',return_value=[(2,{'CODICE CORSO':'MM1'})]):self.app.replace_report(b'replacement','replacement.xls')
+  self.assertEqual(self.call('/practice',{'id':pid}),result)
+  self.call('/delete-practice',{'id':pid})
+  with self.app.db() as c:self.assertEqual(c.execute('select count(*) from records where import_id IS NULL').fetchone()[0],0)
  def test_course_scope_and_editable_fields(self):
   for code,expected in [('MM1',True),(' mma ',True),('MM',False),('M1R',False),('MM01',True),('MMAR',True),('MA1R',True),(' M00R ',True),('mm01',True),('M123',False),('MABC',False),('M001',False),('MM 1',False),('MM123',False),('X123',False),('M1234',False),('M12',False),('',False)]:
    self.assertEqual(self.app.in_scope({'CODICE CORSO':code}),expected)

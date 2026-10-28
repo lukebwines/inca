@@ -1,5 +1,13 @@
 [
   {
+    "name": "CDS",
+    "hidden": false
+  },
+  {
+    "name": "ANNO ACCADEMICO",
+    "hidden": false
+  },
+  {
     "name": "INSEGNAMENTO",
     "hidden": false
   },
@@ -72,5 +80,10 @@
     "label": "SATURAZIONE DOCENTE A PREVENTIVO (PREMODIFICA)",
     "hidden": false,
     "original_only": true
+  },
+  {
+    "name": "NOTE DELLA MODIFICA",
+    "hidden": false,
+    "item_note": true
   }
 ]

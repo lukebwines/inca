@@ -7,6 +7,7 @@ import xlrd
 sys.path.insert(0,str(pathlib.Path(__file__).parent))
 from excel_export import export_proposal
 import auth
+import splits
 from http.cookies import SimpleCookie
 import threading
 ROOT=pathlib.Path(__file__).resolve().parent
@@ -28,6 +29,9 @@ def db():
 def init():
  with db() as c:
   c.executescript('CREATE TABLE IF NOT EXISTS imports(id INTEGER PRIMARY KEY,name TEXT,sha TEXT UNIQUE,created TEXT); CREATE TABLE IF NOT EXISTS records(id INTEGER PRIMARY KEY,import_id INTEGER,line INTEGER,body TEXT); CREATE TABLE IF NOT EXISTS practices(id INTEGER PRIMARY KEY,title TEXT,notes TEXT,created TEXT); CREATE TABLE IF NOT EXISTS changes(id INTEGER PRIMARY KEY,practice_id INTEGER,record_id INTEGER,body TEXT,version INTEGER DEFAULT 1,UNIQUE(practice_id,record_id)); CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY,change_id INTEGER,body TEXT,created TEXT);')
+  columns={r[1] for r in c.execute('pragma table_info(changes)')}
+  for name,definition in [('kind',"TEXT NOT NULL DEFAULT 'existing'"),('source_change_id','INTEGER'),('note',"TEXT NOT NULL DEFAULT ''")]:
+   if name not in columns:c.execute(f'alter table changes add column {name} {definition}')
  auth.init(db)
 def now():return datetime.datetime.now().isoformat(timespec='seconds')
 def parse(raw):
@@ -54,8 +58,8 @@ def replace_report(payload,name):
    target=DATA/f'fonte_{iid}.xls';target.write_bytes(payload)
    c.executemany('insert into records(import_id,line,body) values(?,?,?)',[(iid,line,json.dumps(r)) for line,r in rows])
    # Existing practices own immutable original snapshots through these records.
-   c.execute('delete from records where import_id<>? and id not in (select record_id from changes)',(iid,))
-   c.execute('delete from imports where id<>? and id not in (select import_id from records)',(iid,))
+   c.execute('delete from records where (import_id IS NULL or import_id<>?) and id not in (select record_id from changes)',(iid,))
+   c.execute('delete from imports where id<>? and id not in (select import_id from records where import_id IS NOT NULL)',(iid,))
  except Exception:
   if target is not None:target.unlink(missing_ok=True)
   raise
@@ -85,7 +89,7 @@ def practice(pid):
   items=[]
   for x in c.execute('select changes.*,records.body original from changes join records on records.id=record_id where practice_id=? order by changes.id',(pid,)):
    z=dict(x);z['before']=json.loads(z.pop('original'));z['after']=json.loads(z.pop('body'));z['warnings']=warnings(z['after']);z['history']=[dict(h) for h in c.execute('select created,body from history where change_id=? order by id desc',(z['id'],))];items.append(z)
-  return {'practice':dict(p),'items':items}
+  return {'practice':dict(p),'items':items,'hour_checks':splits.totals(items)}
 def options():
  try:return json.loads((DATA/'options.json').read_text())
  except FileNotFoundError:return {}
@@ -185,6 +189,7 @@ class Handler(BaseHTTPRequestHandler):
     with db() as c:rows=[{'id':r['id'],'line':r['line'],**json.loads(r['body'])} for r in c.execute('select * from records where import_id=? and import_id=(select max(id) from imports)',(q['import_id'],))]
     return self.send([r for r in rows if in_scope(r)])
    if self.path=='/export-xlsx':return self.send(export_proposal(practice(int(q['id']))),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+   if self.path=='/split':return self.send({'id':splits.redistribute(db,now,q)})
    if self.path=='/practice':return self.send(practice(int(q['id'])))
    if self.path in ('/update-practice','/delete-practice'):
     pid=int(q['id'])
@@ -198,6 +203,7 @@ class Handler(BaseHTTPRequestHandler):
       c.execute('delete from history where change_id in (select id from changes where practice_id=?)',(pid,))
       c.execute('delete from changes where practice_id=?',(pid,))
       c.execute('delete from practices where id=?',(pid,))
+      c.execute('delete from records where import_id IS NULL and id not in (select record_id from changes)')
     return self.send({'ok':True})
    if self.path=='/create':
     title=q['title'].strip()
@@ -213,6 +219,7 @@ class Handler(BaseHTTPRequestHandler):
     return self.send({'id':pid})
    if self.path=='/save':
     with db() as c:
+     c.execute('begin immediate')
      row=c.execute('select * from changes where id=?',(q['id'],)).fetchone()
      if not row or row['version']!=q['version']:raise ValueError('La riga è cambiata in un’altra finestra. Riaprire la pratica.')
      r=json.loads(row['body'])
@@ -223,9 +230,14 @@ class Handler(BaseHTTPRequestHandler):
        if not __import__('math').isfinite(v) or v<0:raise ValueError('Inserire numeri non negativi.')
        if k=='MUTUAZIONE' and v not in (0,1):raise ValueError('Mutuazione deve essere 0 o 1.')
       r[k]=v
+     if row['kind']=='new' and 'TOT ORE PREVISTE' in q['values']:r['OREPREVLEZ']=r.get('TOT ORE PREVISTE','')
+     elif 'TOT ORE PREVISTE' in q['values'] and c.execute('select 1 from changes where source_change_id=?',(row['id'],)).fetchone():
+      previous=json.loads(row['body']);lectures=splits.number(previous.get('OREPREVLEZ'))+splits.number(r.get('TOT ORE PREVISTE'))-splits.number(previous.get('TOT ORE PREVISTE'))
+      if lectures<0:raise ValueError('La riduzione supera le ore di lezione residue.')
+      r['OREPREVLEZ']=round(lectures,10)
      if r.get('MUTUAZIONE')==0 and r.get('PADRE MUTUAZIONE'):raise ValueError('Rimuovere il padre mutuazione nella proposta autonoma.')
-     c.execute('insert into history(change_id,body,created) values(?,?,?)',(row['id'],row['body'],now()))
-     c.execute('update changes set body=?,version=version+1 where id=?',(json.dumps(r),row['id']))
+     c.execute('insert into history(change_id,body,created) values(?,?,?)',(row['id'],json.dumps({**json.loads(row['body']),'NOTE DELLA MODIFICA':row['note']}),now()))
+     c.execute('update changes set body=?,note=?,version=version+1 where id=?',(json.dumps(r),str(q.get('note',row['note'])),row['id']))
     return self.send({'ok':True})
    if self.path=='/backup':
     import tempfile,zipfile

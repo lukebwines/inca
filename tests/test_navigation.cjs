@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync('inca/index.html','utf8');
 const elements=new Map();
-function parse(fragment){for(const match of fragment.matchAll(/\bid="([^"]+)"/g)){const id=match[1];if(!elements.has(id))elements.set(id,{addEventListener(){},value:'',hidden:false,textContent:'',_html:'',get innerHTML(){return this._html},set innerHTML(value){this._html=value;parse(value)}})}}
+function parse(fragment){for(const match of fragment.matchAll(/\bid="([^"]+)"/g)){const id=match[1];if(!elements.has(id))elements.set(id,{addEventListener(){},showModal(){},close(){},insertAdjacentHTML(position,value){this.innerHTML+=value},value:'',hidden:false,textContent:'',_html:'',get innerHTML(){return this._html},set innerHTML(value){this._html=value;parse(value)}})}}
 parse(html.split('<script>')[0]);
 const context=vm.createContext({document:{querySelector:s=>elements.get(s.slice(1))||null,querySelectorAll:()=>[]},window:{addEventListener(){}},console});
 const code=html.match(/<script>([\s\S]*)<\/script>/)[1].replace(/archive\(\);\s*$/,'');vm.runInContext(code,context);
@@ -21,6 +21,12 @@ const run=s=>vm.runInContext(s,context);
  elements.get('only').checked=true;run('drawItems()');assert.match(elements.get('items').innerHTML,/premodifica:<\/strong> 125.5/);
  run("active.items[0].before['SATURAZIONE DOCENTE A PREVENTIVO']=0;drawItems()");assert.match(elements.get('items').innerHTML,/premodifica:<\/strong> 0/);
  run("delete active.items[0].before['SATURAZIONE DOCENTE A PREVENTIVO'];drawItems()");assert.match(elements.get('items').innerHTML,/premodifica:<\/strong> \[DA VERIFICARE\]/);
+ run("active.practice.title='Cardiologia 2026-2027';active.practice.id=1");assert.equal(run('practiceFilename()'),'Cardiologia 2026-2027');
+ run("active.practice.title='Test: titolo?'");assert.equal(run('practiceFilename()'),'Test_ titolo_');
+ run("active.items[0].kind='new';active.items[0].after.MODULO='Modulo nuovo';active.items[0].note='Nota <test>';drawItems()");
+ assert.match(elements.get('items').innerHTML,/Nuova copertura proposta/);assert.match(elements.get('items').innerHTML,/Modulo nuovo/);assert.match(elements.get('items').innerHTML,/Nota &lt;test&gt;/);
+ run("active.items[0].kind='existing';active.items[0].after['TOT ORE PREVISTE']=10;active.items[0].after.OREPREVLEZ=10;splitForm(1)");
+ assert(elements.has('splitform'));assert(elements.has('splitnote'));assert.equal(typeof elements.get('splitform').onsubmit,'function');
  context.fixture=[];await run('usersPage()');assert(elements.has('newuser'));assert(elements.has('usererror'));
  console.log('PASS real HTML navigation IDs, archive/practices for each role, initial user form');
 })().catch(e=>{console.error(e);process.exitCode=1});
