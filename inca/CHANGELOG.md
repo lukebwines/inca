@@ -1,3 +1,7 @@
+# 0.1.13
+
+- Rimosso il filtro Anno accademico e ripristinato Mutuazione nell’ordine del report.
+
 # 0.1.12
 
 - Rimosso il filtro Mutuazione e aggiunto Insegnamento.
