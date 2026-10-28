@@ -1,3 +1,8 @@
+# 0.1.12
+
+- Rimosso il filtro Mutuazione e aggiunto Insegnamento.
+- Filtri disposti secondo l’ordine delle colonne del report.
+
 # 0.1.11
 
 - Rimosso il filtro Scuola e aggiunto Modulo, con ricerca e selezione multipla collegata.
