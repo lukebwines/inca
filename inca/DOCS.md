@@ -99,3 +99,7 @@ Le note compaiono in Excel e PDF e possono descrivere coordinamento, decorrenza 
 Il confronto mostra un controllo del totale per ciascuna suddivisione. Una successiva modifica delle ore può
 creare temporaneamente una differenza: questa viene segnalata anche negli output, senza correggere automaticamente
 le ore degli altri docenti. Per le righe coinvolte in una suddivisione, modificare il totale aggiorna le ore di lezione.
+
+### Formato Excel (0.3.1)
+
+Titolo della pratica, intestazioni blu scuro e sezioni separate. Ambra indica i dati modificati, verde chiaro le nuove coperture e rosso chiaro i dati da verificare. Le note hanno una colonna ampia; le righe si adattano al contenuto. Intestazioni e prime due colonne restano visibili durante lo scorrimento. Stampa A3 orizzontale all’80%, anche su più pagine in larghezza, con CDS e anno accademico ripetuti per orientarsi. Il formato non modifica i dati della pratica; riesportare per ottenere il nuovo stile.

@@ -1,3 +1,9 @@
+## 0.3.1
+
+- Excel: titolo pratica, sezioni estese, intestazioni blu, righe alternate e altezza in base al contenuto.
+- Colori distinti per modifiche, nuove coperture e dati da verificare; note più ampie e legenda.
+- Blocca intestazioni e prime due colonne, nasconde griglia; area di stampa A3 orizzontale senza comprimere tutte le colonne in una pagina.
+
 # 0.3.0
 
 - Suddivisione delle ore di lezione in nuove coperture proposte, con riduzione delle ore originarie e controllo del totale.

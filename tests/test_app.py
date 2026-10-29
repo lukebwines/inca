@@ -80,7 +80,7 @@ class AppTests(unittest.TestCase):
     for ref in ('T4','T9'):
      cell=root.find(f".//m:c[@r='{ref}']",ns)
      self.assertEqual(''.join(cell.itertext()),'[DA VERIFICARE]' if value is None or value=='' else str(value))
-     self.assertEqual(cell.attrib['s'],'0')
+     self.assertEqual(cell.attrib['s'],'9' if value is None or value=='' else '0')
  def test_split_lecture_hours_lifecycle(self):
   import xml.etree.ElementTree as ET
   from unittest.mock import patch
