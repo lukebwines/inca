@@ -1,5 +1,6 @@
 """Proposed teaching-hour redistribution; imported records are never changed."""
 import json, math
+import teachers
 CONTEXT=['CDS','ANNO ACCADEMICO','TIPOLOGIA','SEDE CORSO','CODICE CORSO','CFU TOTALI INS','CODICE INS','TIPOEROGAZIONE','INSEGNAMENTO','CODICE UGOV','DISCRIMINANTE DI OI','MODULO','UL','DISCRIMINANTE MODULO','ANNO','TAF INSEGNAMENTO','FUORI PIANO','SSD INSEGNAMENTO','MOODLE','PERIODO INIZIO','PERIODO FINE']
 HOURS=['OREPREVLEZ','OREPREVLAB','OREPREVESE','OREPREVSEM','OREPREVALTRO','OREPREVTIR']
 def number(value):
@@ -23,6 +24,10 @@ def redistribute(db,now,q):
   c.execute('begin immediate')
   source=c.execute('select * from changes where id=?',(q['id'],)).fetchone()
   if not source or source['kind']!='existing' or source['version']!=q['version']:raise ValueError('Incarico non disponibile o modificato: riaprire la pratica.')
+  for i,allocation in enumerate(allocations):
+   if allocation.get('teacher_id'):
+    identity={};teachers.select_teacher(c,source['practice_id'],allocation['teacher_id'],identity)
+    prepared[i]=(identity['NOME DOCENTE'],identity['COGNOME DOCENTE'],prepared[i][2],prepared[i][3])
   current=json.loads(source['body']);total=number(current.get('TOT ORE PREVISTE'));lectures=number(q.get('lecture_hours'))
   if lectures>total or transferred>lectures:raise ValueError('Le ore cedute non possono superare le ore di lezione e il totale dell’incarico.')
   if str(current.get('MUTUAZIONE','')).lower() in ('1','1.0','true','vero'):raise ValueError('Prima della suddivisione verificare e rimuovere la mutuazione nella proposta.')
@@ -31,10 +36,11 @@ def redistribute(db,now,q):
   description='Redistribuzione proposta di '+str(transferred)+' ore di lezione: '+ '; '.join((name+' '+surname).strip()+': '+str(hours)+' ore' for name,surname,hours,title in prepared)+'.'
   extra=str(q.get('note','')).strip();note='\n'.join(x for x in (source['note'],description,extra) if x)
   c.execute('update changes set body=?,note=?,version=version+1 where id=?',(json.dumps(current),note,source['id']))
-  for name,surname,hours,title in prepared:
+  for allocation,(name,surname,hours,title) in zip(allocations,prepared):
    proposed={k:current.get(k,'') for k in CONTEXT}
    proposed.update({k:0 for k in HOURS})
    proposed.update({'MUTUAZIONE':0,'PADRE MUTUAZIONE':'','CFU':'','NOME DOCENTE':name,'COGNOME DOCENTE':surname,'MATRICOLA DOCENTE':'','CF DOCENTE':'','DIPARTIMENTO AFFERENZA DOCENTE':'','ID COPERTURA':'','TITOLO AFFIDAMENTO':title,'TOT ORE PREVISTE':hours,'OREPREVLEZ':hours})
+   if allocation.get('teacher_id'):teachers.select_teacher(c,source['practice_id'],allocation['teacher_id'],proposed)
    rid=c.execute('insert into records(import_id,line,body) values(NULL,0,?)',('{}',)).lastrowid
    newnote='Nuova copertura proposta per redistribuzione di ore di lezione. CFU, anagrafica e formalizzazione: [DA VERIFICARE].'
    if not title:newnote+=' Titolo affidamento: [DA VERIFICARE].'

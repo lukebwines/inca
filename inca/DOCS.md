@@ -103,3 +103,14 @@ le ore degli altri docenti. Per le righe coinvolte in una suddivisione, modifica
 ### Formato Excel (0.3.1)
 
 Titolo della pratica, intestazioni blu scuro e sezioni separate. Ambra indica i dati modificati, verde chiaro le nuove coperture e rosso chiaro i dati da verificare. Le note hanno una colonna ampia; le righe si adattano al contenuto. Intestazioni e prime due colonne restano visibili durante lo scorrimento. Stampa A3 orizzontale all’80%, anche su più pagine in larghezza, con CDS e anno accademico ripetuti per orientarsi. Il formato non modifica i dati della pratica; riesportare per ottenere il nuovo stile.
+
+### Archivio docenti (0.4.0)
+
+1. Un amministratore apre **Docenti e carichi**, carica il report XLS con le nove colonne previste e indica l’anno di riferimento (es. 2026/2027). La data del report può restare vuota: viene segnalata come da verificare.
+2. Cerca i docenti interessati e conferma il collegamento alla matricola. I candidati provengono da tutto il report coperture corrente, senza escludere l’anno convenzionale n-1 delle specializzazioni. In caso di più matricole verificare qualifica, dipartimento e SSD. Non sono effettuati abbinamenti approssimativi. Le posizioni future non sono selezionabili come docenti.
+3. Apri una pratica, quindi **Acquisisci riferimento docenti** dopo aver confermato gli abbinamenti necessari. Questa copia rimane fissa e non viene sovrascritta. Le pratiche precedenti funzionano anche senza archivio docenti. L’anno degli incarichi gestiti deve corrispondere a quello dell’elenco; i corsi gestibili restano MM?, MM??, M??R.
+4. In Modifica proposta e Suddividi ore puoi selezionare un docente confermato: nome, cognome, matricola, SSD e afferenza sono riportati dall’archivio. I dati personali e i carichi del precedente docente non vengono attribuiti al nuovo. CFU e titolo di affidamento restano da valutare.
+
+Un nuovo caricamento sostituisce l’elenco corrente e richiede nuova conferma dei collegamenti. Le pratiche già collegate mantengono il riferimento acquisito e segnalano gli aggiornamenti dell’archivio. Per lavorare su una nuova base creare una nuova pratica; non viene effettuato un aggiornamento retroattivo delle pratiche.
+
+I valori potenziale, preventivo e consuntivo sono in ore. Il riepilogo mostra separatamente il carico premodifica delle coperture e quello dell’elenco docenti. La variazione aritmetica delle ore degli incarichi nella pratica è distinta: non viene automaticamente aggiunta al carico, perché il report potrebbe già recepirla e le tipologie di attività potrebbero avere pesi diversi. Non viene inferita una percentuale di saturazione né effettuata una riconciliazione automatica. Il riepilogo compare anche in Excel e nella stampa PDF. Le matricole rimangono stringhe per conservare gli zeri iniziali. Il backup comprende elenco e riferimenti nel database.

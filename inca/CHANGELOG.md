@@ -1,3 +1,11 @@
+## 0.4.0
+
+- Archivio docenti XLS separato: anno e data di riferimento, ricerca, potenziale, carico preventivo e consuntivo.
+- Proposte di collegamento alle matricole su tutto il report coperture; conferma amministratore, gestione omonimie e posizioni future.
+- Riferimento docenti acquisibile nelle pratiche e conservato dopo aggiornamenti; selezione del docente in modifica e suddivisione ore.
+- Confronto dei carichi tra fonti, segnalazione differenze e variazione delle ore della pratica senza somma automatica al carico ufficiale.
+- Riepilogo del riferimento e dei carichi anche nell’Excel e nella stampa PDF; backup SQLite include l’archivio docenti.
+
 ## 0.3.1
 
 - Excel: titolo pratica, sezioni estese, intestazioni blu, righe alternate e altezza in base al contenuto.

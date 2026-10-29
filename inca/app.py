@@ -8,6 +8,7 @@ sys.path.insert(0,str(pathlib.Path(__file__).parent))
 from excel_export import export_proposal
 import auth
 import splits
+import teachers
 from http.cookies import SimpleCookie
 import threading
 ROOT=pathlib.Path(__file__).resolve().parent
@@ -32,6 +33,7 @@ def init():
   columns={r[1] for r in c.execute('pragma table_info(changes)')}
   for name,definition in [('kind',"TEXT NOT NULL DEFAULT 'existing'"),('source_change_id','INTEGER'),('note',"TEXT NOT NULL DEFAULT ''")]:
    if name not in columns:c.execute(f'alter table changes add column {name} {definition}')
+  teachers.init(c)
  auth.init(db)
 def now():return datetime.datetime.now().isoformat(timespec='seconds')
 def parse(raw):
@@ -89,7 +91,8 @@ def practice(pid):
   items=[]
   for x in c.execute('select changes.*,records.body original from changes join records on records.id=record_id where practice_id=? order by changes.id',(pid,)):
    z=dict(x);z['before']=json.loads(z.pop('original'));z['after']=json.loads(z.pop('body'));z['warnings']=warnings(z['after']);z['history']=[dict(h) for h in c.execute('select created,body from history where change_id=? order by id desc',(z['id'],))];items.append(z)
-  return {'practice':dict(p),'items':items,'hour_checks':splits.totals(items)}
+  snap=teachers.snapshot(c,pid);latest=teachers.current(c)
+  return {'practice':dict(p),'items':items,'hour_checks':splits.totals(items),'teacher_reference':snap,'teacher_report_available':bool(latest),'teacher_report_newer':bool(snap and latest and (snap['id']!=latest['id'] or snap['rows']!=latest['rows'])),'teacher_summary':teachers.summaries(snap,items)}
 def options():
  try:return json.loads((DATA/'options.json').read_text())
  except FileNotFoundError:return {}
@@ -158,13 +161,29 @@ class Handler(BaseHTTPRequestHandler):
   if not self.authorize():return
   if self.headers.get('X-Token')!=self.csrf:return self.send({'error':'Sessione non valida: riaprire la pagina'},status=403)
   try:
-   if self.user['role']!='admin' and self.path in ('/import','/backup','/users','/create-user','/update-user'):return self.send({'error':'Operazione riservata agli amministratori.'},status=403)
+   if self.user['role']!='admin' and self.path in ('/import','/import-teachers','/link-teacher','/backup','/users','/create-user','/update-user'):return self.send({'error':'Operazione riservata agli amministratori.'},status=403)
    payload=self.read_body()
+   if self.path=='/import-teachers':
+    name=__import__('urllib.parse',fromlist=['unquote']).unquote(self.headers.get('X-Name','Docenti.xls'))
+    with db() as c:count=teachers.replace(c,payload,name,self.headers.get('X-Year',''),self.headers.get('X-Date',''),now())
+    return self.send({'count':count})
    if self.path=='/import':
     name=__import__('urllib.parse',fromlist=['unquote']).unquote(self.headers.get('X-Name','Archivio.xls'))
     return self.send({'count':replace_report(payload,name)})
    q=json.loads(payload or b'{}')
    if self.path=='/state':return self.send({**state(),'auth':{**self.user,'external':self.external}})
+   if self.path=='/teachers':
+    with db() as c:
+     report=teachers.current(c)
+     return self.send(teachers.candidates(c,report) if report else None)
+   if self.path=='/link-teacher':
+    with db() as c:teachers.link(c,q)
+    return self.send({'ok':True})
+   if self.path=='/attach-teachers':
+    with db() as c:
+     if not c.execute('select 1 from practices where id=?',(q['id'],)).fetchone():raise ValueError('Pratica inesistente')
+     teachers.attach(c,int(q['id']))
+    return self.send({'ok':True})
    if self.path=='/users':return self.send(auth.list_users(db))
    if self.path=='/create-user':
     uid=auth.create_user(db,q['username'],q['password'],q.get('role','operator'))
@@ -203,6 +222,7 @@ class Handler(BaseHTTPRequestHandler):
       c.execute('delete from history where change_id in (select id from changes where practice_id=?)',(pid,))
       c.execute('delete from changes where practice_id=?',(pid,))
       c.execute('delete from practices where id=?',(pid,))
+      c.execute('delete from practice_teachers where practice_id=?',(pid,))
       c.execute('delete from records where import_id IS NULL and id not in (select record_id from changes)')
     return self.send({'ok':True})
    if self.path=='/create':
@@ -230,6 +250,7 @@ class Handler(BaseHTTPRequestHandler):
        if not __import__('math').isfinite(v) or v<0:raise ValueError('Inserire numeri non negativi.')
        if k=='MUTUAZIONE' and v not in (0,1):raise ValueError('Mutuazione deve essere 0 o 1.')
       r[k]=v
+     if q.get('teacher_id') is not None:teachers.select_teacher(c,row['practice_id'],q['teacher_id'],r)
      if row['kind']=='new' and 'TOT ORE PREVISTE' in q['values']:r['OREPREVLEZ']=r.get('TOT ORE PREVISTE','')
      elif 'TOT ORE PREVISTE' in q['values'] and c.execute('select 1 from changes where source_change_id=?',(row['id'],)).fetchone():
       previous=json.loads(row['body']);lectures=splits.number(previous.get('OREPREVLEZ'))+splits.number(r.get('TOT ORE PREVISTE'))-splits.number(previous.get('TOT ORE PREVISTE'))

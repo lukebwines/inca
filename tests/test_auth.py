@@ -40,7 +40,7 @@ class AuthTests(unittest.TestCase):
   return self.cookie
  def test_closed_without_login_and_proxy_headers(self):
   status,h,body=self.request();self.assertEqual(status,200);self.assertIn(b'Accedi',body);self.assertNotIn(self.app.TOKEN.encode(),body)
-  for endpoint in ('/state','/records','/practice','/backup','/export-xlsx','/create','/save','/import','/users','/create-user','/delete-practice'):
+  for endpoint in ('/state','/records','/practice','/backup','/export-xlsx','/create','/save','/import','/teachers','/import-teachers','/link-teacher','/attach-teachers','/users','/create-user','/delete-practice'):
    status,_,_=self.request(endpoint,{}, {'X-Remote-User-Name':'admin','X-Forwarded-For':'172.30.32.2','X-Token':self.app.TOKEN})
    self.assertEqual(status,401,endpoint)
   self.assertEqual(self.request('/',extra={'Host':'evil.test'})[0],403)
@@ -51,7 +51,7 @@ class AuthTests(unittest.TestCase):
   self.assertEqual(self.request('/state',{})[0],200)
   self.assertEqual(self.request('/state',{}, {'X-Token':self.app.TOKEN})[0],403)
   self.assertEqual(self.request('/state',{}, {'Origin':'https://evil.test'})[0],403)
-  for endpoint in ('/users','/create-user','/update-user','/import','/backup'):self.assertEqual(self.request(endpoint,{})[0],403)
+  for endpoint in ('/users','/create-user','/update-user','/import','/import-teachers','/link-teacher','/backup'):self.assertEqual(self.request(endpoint,{})[0],403)
   cookie=self.cookie;self.assertEqual(self.request('/logout',{})[0],200)
   self.cookie=cookie;self.assertEqual(self.request('/state',{})[0],401)
   self.login();self.assertEqual(self.request('/users',{})[0],200)

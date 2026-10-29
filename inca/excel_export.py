@@ -57,7 +57,7 @@ def export_proposal(practice):
     values.append(cell(rn,j+1,value,style))
    row(rn,values,height(display))
  footer=second+len(items)+3
- notes=['Legenda: ambra = dato modificato · verde chiaro = nuova copertura proposta · rosso chiaro = dato da verificare',practice.get('practice',{}).get('notes','')]+practice.get('hour_checks',[])
+ notes=['Legenda: ambra = dato modificato · verde chiaro = nuova copertura proposta · rosso chiaro = dato da verificare',practice.get('practice',{}).get('notes','')]+practice.get('hour_checks',[])+practice.get('teacher_summary',[])
  for note in notes:
   if note:
    row(footer,[cell(footer,1,note,12)],max(30,15*(1+len(note)//180)));merged.append(f'<mergeCell ref="A{footer}:{column(len(schema))}{footer}"/>');footer+=1

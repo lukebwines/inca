@@ -212,4 +212,29 @@ class AppTests(unittest.TestCase):
   with patch.object(self.app.xlrd,'open_workbook',return_value=book):rows=self.app.parse(b'synthetic')
   self.assertEqual(rows[0][1]['ID COPERTURA'],'000123');self.assertRegex(rows[0][1]['PERIODO INIZIO'],r'^\d{4}-\d{2}-\d{2}$')
 
+ def test_teacher_reference_api(self):
+  from unittest.mock import patch
+  t={k:'' for k in self.app.teachers.FIELDS};t.update({'id':1,'NOME':'Nome','COGNOME':'Prova','matricola':'','placeholder':False,'ORE POTENZIALE':120,'ORE CARICO PREVENTIVO':80,'ORE CARICO CONSUNTIVO':0})
+  with self.app.db() as c:
+   r=dict(self.record,**{'ANNO ACCADEMICO':'2026/2027','NOME DOCENTE':'Nome','COGNOME DOCENTE':'Prova','MATRICOLA DOCENTE':'000123','SATURAZIONE DOCENTE A PREVENTIVO':84})
+   c.execute('update records set body=? where id=1',(json.dumps(r),))
+  with patch.object(self.app.teachers,'parse',return_value=[t]):
+   req=urllib.request.Request(self.url+'/import-teachers',data=b'synthetic',headers={'X-Token':self.app.TOKEN,'X-Year':'2026/2027','X-Name':'synthetic.xls'})
+   with urllib.request.urlopen(req) as resp:self.assertEqual(json.load(resp)['count'],1)
+  report=self.call('/teachers');self.assertEqual(report['rows'][0]['matricola'],'')
+  self.call('/link-teacher',{'report_id':report['id'],'teacher_id':1,'matricola':'000123'})
+  pid=self.create();self.call('/attach-teachers',{'id':pid});p=self.call('/practice',{'id':pid})
+  self.assertTrue(p['teacher_reference']);self.assertIn('DIFFERENZA TRA REPORT',' '.join(p['teacher_summary']))
+  item=p['items'][0];self.call('/save',{'id':item['id'],'version':item['version'],'values':{'MUTUAZIONE':0,'PADRE MUTUAZIONE':''},'teacher_id':1})
+  self.assertEqual(self.call('/practice',{'id':pid})['items'][0]['after']['MATRICOLA DOCENTE'],'000123')
+  current=self.call('/practice',{'id':pid})['items'][0]
+  self.call('/split',{'id':current['id'],'version':current['version'],'lecture_hours':6,'allocations':[{'name':'Other','surname':'Other','hours':2,'title':'','teacher_id':1}]})
+  children=self.call('/practice',{'id':pid})['items']
+  self.assertEqual(children[1]['after']['MATRICOLA DOCENTE'],'000123')
+  self.assertEqual(children[1]['after']['COGNOME DOCENTE'],'Prova')
+  raw=self.call('/export-xlsx',{'id':pid})
+  with zipfile.ZipFile(io.BytesIO(raw)) as z:self.assertIn('Archivio docenti di riferimento',z.read('xl/worksheets/sheet1.xml').decode())
+  self.call('/delete-practice',{'id':pid})
+  with self.app.db() as c:self.assertEqual(c.execute('select count(*) from practice_teachers').fetchone()[0],0)
+
 if __name__=='__main__':unittest.main()
